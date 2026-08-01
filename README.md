@@ -45,6 +45,8 @@ python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
+python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -76,14 +78,19 @@ packing, zlib compression, skeleton hashing, declared payload lengths, and CRC c
 Every encode command immediately decodes the produced bytes and prints its rotation,
 translation, compression-ratio, and bits-per-joint-per-frame measurements.
 
-This is the first deterministic reference Codec. It does not yet perform adaptive
-keyframe reduction, entropy models trained on motion, or production FBX I/O. Those are
-later milestones rather than claims of the current release. See `FORMAT.md` for the
-binary contract.
+The same `.skac` file can also target multiple BVH skeletons through hash-pinned,
+one-time profiles. The current retargeter handles semantic aliases, unequal spine
+chains, rest-basis conversion, extra engine roots, and body-scale compensation. See
+`FORMAT.md` and `RETARGETING.md` for the two contracts.
 
-The `reports` directory contains four aggregate records:
+This is still a deterministic reference implementation. Production twist
+distribution, end-effector IK, robust contact locking, and FBX I/O remain later
+milestones rather than claims of the current release.
+
+The `reports` directory contains five aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
+- a one-file, two-target public retargeting smoke test;
 - an official SAN public-test reproduction;
 - a simple public rotation-copy pipeline trial;
 - a full SAN run using `skac_public_core`.
@@ -151,6 +158,8 @@ python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
+python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -175,13 +184,17 @@ python tools/audit_release.py .
 四元数编码、有界均匀位移量化、位级打包、zlib 压缩、骨架哈希、长度校验和 CRC。每次
 编码都会立刻从生成的字节解码一次，并输出旋转误差、位移误差、压缩比和每关节每帧位数。
 
-这是第一版确定性参考 Codec。它还没有自适应关键帧删减、针对动作训练的熵模型和生产级
-FBX 输入输出，这些属于后续里程碑，不会写成当前版本已经具备的能力。二进制约定见
-`FORMAT.md`。
+同一个 `.skac` 现在也能通过一次性冻结并锁定哈希的 Profile 输出到多个 BVH 目标骨架。
+当前重定向器能处理语义别名、不同长度的脊柱链、参考姿态基变换、额外引擎 Root 和身体
+比例补偿。两部分约定分别见 `FORMAT.md` 和 `RETARGETING.md`。
 
-`reports` 里目前有四份汇总记录：
+这仍然是确定性参考实现。生产级 Twist 分配、末端 IK、稳定接触锁定和 FBX 输入输出仍是
+后续里程碑，不会写成当前版本已经具备的能力。
+
+`reports` 里目前有五份汇总记录：
 
 - 一份使用公开 SAN BVH 的 Codec 1.0 往返测试；
+- 一份“单文件、双目标”的公开重定向测试；
 - SAN 官方公开测试复现；
 - 一个简单的公开旋转复制管线试验；
 - 使用 `skac_public_core` 跑完的 SAN 测试。

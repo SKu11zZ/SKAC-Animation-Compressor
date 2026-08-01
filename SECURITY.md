@@ -15,6 +15,8 @@ The following rules are mandatory:
    a declared public-data root.
    Generated `.skac` files are asset data: they can contain source joint names and must
    not be committed without a separate provenance and redistribution review.
+   Generated retarget profiles also contain source and target joint names and follow the
+   same rule.
 4. Automatic-track configuration is frozen once per skeleton. Per-animation tuning is
    rejected.
 5. Artist Gold is a separate track and can never be aggregated with automatic results.

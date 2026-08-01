@@ -88,6 +88,52 @@ def quaternion_to_matrix(value: ArrayLike) -> FloatArray:
     return result
 
 
+def matrix_to_quaternion(value: ArrayLike) -> FloatArray:
+    matrices = np.asarray(value, dtype=np.float64)
+    if matrices.shape[-2:] != (3, 3):
+        raise ValueError("rotation matrices require final dimensions (3, 3)")
+    flat = matrices.reshape(-1, 3, 3)
+    result = np.empty((len(flat), 4), dtype=np.float64)
+    for index, matrix in enumerate(flat):
+        trace = float(np.trace(matrix))
+        if trace > 0.0:
+            scale = math.sqrt(trace + 1.0) * 2.0
+            result[index] = (
+                0.25 * scale,
+                (matrix[2, 1] - matrix[1, 2]) / scale,
+                (matrix[0, 2] - matrix[2, 0]) / scale,
+                (matrix[1, 0] - matrix[0, 1]) / scale,
+            )
+        else:
+            diagonal = np.diag(matrix)
+            axis = int(np.argmax(diagonal))
+            if axis == 0:
+                scale = math.sqrt(1.0 + matrix[0, 0] - matrix[1, 1] - matrix[2, 2]) * 2.0
+                result[index] = (
+                    (matrix[2, 1] - matrix[1, 2]) / scale,
+                    0.25 * scale,
+                    (matrix[0, 1] + matrix[1, 0]) / scale,
+                    (matrix[0, 2] + matrix[2, 0]) / scale,
+                )
+            elif axis == 1:
+                scale = math.sqrt(1.0 + matrix[1, 1] - matrix[0, 0] - matrix[2, 2]) * 2.0
+                result[index] = (
+                    (matrix[0, 2] - matrix[2, 0]) / scale,
+                    (matrix[0, 1] + matrix[1, 0]) / scale,
+                    0.25 * scale,
+                    (matrix[1, 2] + matrix[2, 1]) / scale,
+                )
+            else:
+                scale = math.sqrt(1.0 + matrix[2, 2] - matrix[0, 0] - matrix[1, 1]) * 2.0
+                result[index] = (
+                    (matrix[1, 0] - matrix[0, 1]) / scale,
+                    (matrix[0, 2] + matrix[2, 0]) / scale,
+                    (matrix[1, 2] + matrix[2, 1]) / scale,
+                    0.25 * scale,
+                )
+    return normalize_quaternions(result).reshape(matrices.shape[:-2] + (4,))
+
+
 def quaternion_slerp(start: ArrayLike, end: ArrayLike, amount: ArrayLike) -> FloatArray:
     first = normalize_quaternions(start)
     second = normalize_quaternions(end)

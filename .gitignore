@@ -36,6 +36,7 @@ vendor/
 # Motion, character, geometry, and scene assets
 *.bvh
 *.skac
+*.skac-profile.json
 *.fbx
 *.gltf
 *.glb

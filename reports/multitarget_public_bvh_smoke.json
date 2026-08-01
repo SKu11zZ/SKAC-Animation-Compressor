@@ -1,0 +1,51 @@
+{
+  "codec_source": {
+    "encoded_sha256": "3ad670d27385ad4d8d1979e8f51970cfa9c734e7d1ec8bdee59abd1b0137eeca",
+    "motion_id": "Box Turn",
+    "source_character_id": "Vampire_m",
+    "source_skeleton_sha256": "8b41d17a82228a0767e0c596ab416781b72cdab3e8f2545f0e27ba1220f26a4b"
+  },
+  "method": {
+    "contact_lock": false,
+    "implementation_version": "0.3.0",
+    "profile_schema_version": "1.0.0"
+  },
+  "quality_layer": "retargeting",
+  "schema_version": "0.1.0",
+  "scorer": {
+    "official_code_commit": "74fff8fb35e6378351d03fb14ee22fccae28b0bf",
+    "provenance_url": "https://github.com/DeepMotionEditing/deep-motion-editing"
+  },
+  "storage_note": "The source, targets, profiles, encoded file, and generated BVH files are not distributed by this repository.",
+  "targets": [
+    {
+      "global_mse_x1e3": 0.5873917951468416,
+      "joint_count": 23,
+      "local_mse_x1e3": 0.5657123549153782,
+      "mapped_joint_count": 53,
+      "output_sha256": "578ee343426e258d13aadc5f1e88e7664deaad487c0faabe0ce34cddfff2dee",
+      "position_distance_x1e3": 36.475172216168,
+      "profile_sha256": "018efcea90a836a383ae0f08d3d477f7bae62456076a653d651fd56c5a4ef32d",
+      "profile_file_sha256": "503e826e5e172169a4ee9cc04c9f5d7817db4cc4808618547a7e3ac275c1047d",
+      "root_translation_scale": 0.7431310117046026,
+      "target_character_id": "SportyGranny",
+      "target_source_sha256": "2a5c53a84316bee0eaac322fa9b8b8da515ff816426c0de9a2f674fcf79d1c28",
+      "target_skeleton_sha256": "9957570d66f17d66bc1ffe7a625605c4d293a42952c3a26ee3338ce093aa790d"
+    },
+    {
+      "global_mse_x1e3": 0.02849840630755088,
+      "joint_count": 28,
+      "local_mse_x1e3": 0.010244679026691052,
+      "mapped_joint_count": 60,
+      "output_sha256": "b9f8caa67ca28bbadc40168e0665dd71a3b379b2aed41948b3b5a3ebb41c826a",
+      "position_distance_x1e3": 9.078349912192767,
+      "profile_sha256": "4d2e59a51a2d231b01d2171d11dca5c4f7a6dc6407a84f3576de2f1573db12ea",
+      "profile_file_sha256": "d35a3cd23e812f7cafed790ad6068dfc1b697445c990bd8ce346bac28aff99a2",
+      "root_translation_scale": 0.8892999478380933,
+      "target_character_id": "Mremireh_m",
+      "target_source_sha256": "5a7fa0a8c8b00a7adbb8ed14addfcd734e094f7c3f778fb19e93dd204e98aa6e",
+      "target_skeleton_sha256": "78bbbe0844e1335ac8f332293ff6224a5dab2e4432217c2d48bb363befcac5f5"
+    }
+  ],
+  "validation_scope": "One public source motion decoded from one .skac file to two frozen target profiles; not a complete SAN benchmark table."
+}

@@ -8,6 +8,12 @@ from typing import Sequence
 from .bvh import read_bvh, write_bvh
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
+from .retarget import (
+    build_retarget_profile,
+    load_retarget_profile,
+    retarget_motion,
+    save_retarget_profile,
+)
 
 
 def _settings(args: argparse.Namespace) -> CodecSettings:
@@ -67,14 +73,24 @@ def _encode(args: argparse.Namespace) -> int:
 
 def _decode(args: argparse.Namespace) -> int:
     clip = read_skac(args.input)
+    diagnostics = {}
+    command = "decode"
+    if (args.target is None) != (args.profile is None):
+        raise ValueError("--target and --profile must be supplied together")
+    if args.target is not None:
+        target_skeleton = read_bvh(args.target).skeleton
+        profile = load_retarget_profile(args.profile)
+        clip, diagnostics = retarget_motion(clip, target_skeleton, profile)
+        command = "decode-retarget"
     write_bvh(args.output, clip)
     _write_json(
         {
-            "command": "decode",
+            "command": command,
             "frame_count": clip.frame_count,
             "joint_count": clip.skeleton.joint_count,
             "frame_time": clip.frame_time,
             "skeleton_sha256": clip.skeleton.signature(),
+            **diagnostics,
         }
     )
     return 0
@@ -82,6 +98,32 @@ def _decode(args: argparse.Namespace) -> int:
 
 def _inspect(args: argparse.Namespace) -> int:
     _write_json(inspect_file(args.input))
+    return 0
+
+
+def _profile(args: argparse.Namespace) -> int:
+    source = read_skac(args.source).skeleton
+    target = read_bvh(args.target).skeleton
+    up_axis = {"X": 0, "Y": 1, "Z": 2}[args.up_axis]
+    profile = build_retarget_profile(
+        source,
+        target,
+        up_axis=up_axis,
+        contact_lock=args.contact_lock,
+    )
+    save_retarget_profile(args.output, profile)
+    _write_json(
+        {
+            "command": "profile",
+            "profile_sha256": profile.signature(),
+            "source_skeleton_sha256": profile.source_skeleton_sha256,
+            "target_skeleton_sha256": profile.target_skeleton_sha256,
+            "mapped_joint_count": len(profile.transfers),
+            "root_translation_scale": profile.root_translation_scale,
+            "contact_lock": profile.contact_lock,
+            "foot_pair_count": len(profile.foot_pairs),
+        }
+    )
     return 0
 
 
@@ -102,14 +144,32 @@ def build_parser() -> argparse.ArgumentParser:
     encode_parser.add_argument("--zlib-level", type=int)
     encode_parser.set_defaults(handler=_encode)
 
-    decode_parser = subparsers.add_parser("decode", help="decode to the source BVH skeleton")
+    decode_parser = subparsers.add_parser(
+        "decode", help="decode to the source skeleton or a profiled target skeleton"
+    )
     decode_parser.add_argument("input", type=Path)
     decode_parser.add_argument("--output", "-o", type=Path, required=True)
+    decode_parser.add_argument("--target", type=Path)
+    decode_parser.add_argument("--profile", type=Path)
     decode_parser.set_defaults(handler=_decode)
 
     inspect_parser = subparsers.add_parser("inspect", help="inspect container metadata")
     inspect_parser.add_argument("input", type=Path)
     inspect_parser.set_defaults(handler=_inspect)
+
+    profile_parser = subparsers.add_parser(
+        "profile", help="freeze a source-to-target skeleton profile"
+    )
+    profile_parser.add_argument("source", type=Path, help="source .skac animation")
+    profile_parser.add_argument("target", type=Path, help="target BVH template")
+    profile_parser.add_argument("--output", "-o", type=Path, required=True)
+    profile_parser.add_argument("--up-axis", choices=("X", "Y", "Z"), default="Y")
+    profile_parser.add_argument(
+        "--contact-lock",
+        action="store_true",
+        help="enable the experimental foot-contact root correction",
+    )
+    profile_parser.set_defaults(handler=_profile)
     return parser
 
 

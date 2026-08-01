@@ -23,6 +23,7 @@ ALLOWED_TOP_LEVEL = {
     "pyproject.toml",
     "README.md",
     "RELEASE_CHECKLIST.md",
+    "RETARGETING.md",
     "reports",
     "SECURITY.md",
     "skac_benchmark",

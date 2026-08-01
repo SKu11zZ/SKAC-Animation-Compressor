@@ -37,6 +37,8 @@ class CodecCliTests(unittest.TestCase):
             source = root / "source.bvh"
             encoded = root / "motion.skac"
             restored = root / "restored.bvh"
+            profile = root / "target.profile.json"
+            retargeted = root / "retargeted.bvh"
             source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
 
             output = io.StringIO()
@@ -58,6 +60,39 @@ class CodecCliTests(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["decode", str(encoded), "-o", str(restored)]), 0)
             self.assertEqual(loads_bvh(restored.read_text(encoding="utf-8")).frame_count, 3)
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    main(
+                        [
+                            "profile",
+                            str(encoded),
+                            str(source),
+                            "-o",
+                            str(profile),
+                        ]
+                    ),
+                    0,
+                )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "decode",
+                            str(encoded),
+                            "--target",
+                            str(source),
+                            "--profile",
+                            str(profile),
+                            "-o",
+                            str(retargeted),
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(output.getvalue())["command"], "decode-retarget")
+            self.assertEqual(loads_bvh(retargeted.read_text(encoding="utf-8")).frame_count, 3)
 
 
 if __name__ == "__main__":
