@@ -8,8 +8,9 @@ from typing import Iterator
 
 
 TEXT_SUFFIXES = {
-    ".cff", ".cfg", ".csv", ".html", ".ini", ".json", ".jsonl", ".md",
-    ".py", ".svg", ".toml", ".tsv", ".txt", ".xml", ".yaml", ".yml",
+    ".asmdef", ".c", ".cc", ".cff", ".cfg", ".cpp", ".cs", ".csv",
+    ".h", ".hpp", ".html", ".ini", ".json", ".jsonl", ".md", ".py",
+    ".svg", ".toml", ".tsv", ".txt", ".uplugin", ".xml", ".yaml", ".yml",
 }
 TEXT_FILENAMES = {".gitattributes", ".gitignore", "LICENSE"}
 ALLOWED_TOP_LEVEL = {
@@ -20,6 +21,7 @@ ALLOWED_TOP_LEVEL = {
     "FBX.md",
     "FORMAT.md",
     "LICENSE",
+    "integrations",
     "manifests",
     "PROTOCOL.md",
     "QUALITY_GATES.md",
@@ -27,11 +29,13 @@ ALLOWED_TOP_LEVEL = {
     "README.md",
     "RELEASE_CHECKLIST.md",
     "RETARGETING.md",
+    "RUNTIME_BETA.md",
     "reports",
     "SECURITY.md",
     "skac_benchmark",
     "skac_codec",
     "skac_public_core",
+    "native",
     "tests",
     "THIRD_PARTY_NOTICES.md",
     "tools",

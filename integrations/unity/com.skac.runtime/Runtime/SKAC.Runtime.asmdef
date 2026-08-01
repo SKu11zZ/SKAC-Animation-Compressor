@@ -1,0 +1,6 @@
+{
+  "name": "SKAC.Runtime",
+  "rootNamespace": "Skac.Runtime",
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}

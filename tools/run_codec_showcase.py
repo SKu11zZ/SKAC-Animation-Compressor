@@ -299,7 +299,7 @@ def _text(
 
 
 def write_visual(path: Path, report: dict[str, Any]) -> None:
-    width, height = 1400, 900
+    width, height = 1400, 950
     ink = "#17202a"
     muted = "#667085"
     grid = "#d7dee7"
@@ -337,12 +337,19 @@ def write_visual(path: Path, report: dict[str, Any]) -> None:
         f".axis{{font-size:12px;fill:{muted}}}",
         f".note{{font-size:12px;fill:{muted}}}",
         "</style>",
-        _text(54, 58, "SKAC Codec Performance", css_class="title"),
+        _text(54, 58, "SKAC Codec Performance / SKAC Codec 性能展示", css_class="title"),
         _text(
             54,
             88,
             f"8 public characters x {animation_count} shared random animations | "
             f"{sample_count} BVH clips | high quality | whole-clip decode",
+            css_class="subtitle",
+        ),
+        _text(
+            54,
+            110,
+            f"8 个公开角色 × {animation_count} 条共享随机动画 | {sample_count} 个 BVH | "
+            "high 质量档 | 整段解码",
             css_class="subtitle",
         ),
     ]
@@ -351,44 +358,48 @@ def write_visual(path: Path, report: dict[str, Any]) -> None:
         (
             f'{overall["compression_ratio_vs_float32_channels"]:.2f}x',
             "SMALLER THAN FLOAT32 CHANNELS",
+            "相比 FLOAT32 动画通道的缩小倍数",
         ),
-        (f'{overall["encode_realtime_factor"]:.2f}x', "OFFLINE ENCODE REALTIME"),
-        (f'{overall["decode_realtime_factor"]:.1f}x', "WHOLE-CLIP DECODE REALTIME"),
-        (f'{overall["rotation_error_degrees_max"]:.4f} deg', "MAX ROTATION ERROR"),
+        (f'{overall["encode_realtime_factor"]:.2f}x', "OFFLINE ENCODE REALTIME", "离线编码实时倍速"),
+        (f'{overall["decode_realtime_factor"]:.1f}x', "WHOLE-CLIP DECODE REALTIME", "整段解码实时倍速"),
+        (f'{overall["rotation_error_degrees_max"]:.4f} deg', "MAX ROTATION ERROR", "最大旋转误差"),
     ]
-    card_y, card_height = 122, 112
+    card_y, card_height = 140, 116
     card_width = 306
-    for index, (value, label) in enumerate(cards):
+    for index, (value, label, chinese_label) in enumerate(cards):
         x = 54 + index * 332
         lines.append(
             f'<rect x="{x}" y="{card_y}" width="{card_width}" height="{card_height}" '
             f'rx="10" fill="{surface}" stroke="{grid}"/>'
         )
         lines.append(_text(x + 22, card_y + 48, value, css_class="kpi"))
-        lines.append(_text(x + 22, card_y + 80, label, css_class="kpilabel"))
+        lines.append(_text(x + 22, card_y + 78, label, css_class="kpilabel"))
+        lines.append(_text(x + 22, card_y + 100, chinese_label, css_class="subtitle"))
 
-    panel_y = 286
+    panel_y = 308
     lines.extend(
         [
-            _text(54, panel_y, "Compression ratio by character", css_class="panel"),
+            _text(54, panel_y, "Compression ratio by character / 各角色压缩比", css_class="panel"),
             _text(
                 54,
                 panel_y + 24,
                 "Aggregate raw float32 channel bytes / encoded bytes; higher is better",
                 css_class="subtitle",
             ),
-            _text(746, panel_y, "Whole-clip decode speed by character", css_class="panel"),
+            _text(54, panel_y + 44, "原始 float32 通道字节 ÷ 压缩后字节；越高越好", css_class="subtitle"),
+            _text(746, panel_y, "Whole-clip decode speed / 各角色整段解码速度", css_class="panel"),
             _text(
                 746,
                 panel_y + 24,
                 f"Aggregate animation duration / median decode time ({decode_iterations} runs per clip)",
                 css_class="subtitle",
             ),
+            _text(746, panel_y + 44, f"动画总时长 ÷ 解码中位耗时；每条重复 {decode_iterations} 次", css_class="subtitle"),
         ]
     )
     left_plot_x, right_plot_x = 190.0, 882.0
     plot_width = 430.0
-    row_start, row_gap, bar_height = 342.0, 57.0, 24.0
+    row_start, row_gap, bar_height = 378.0, 56.0, 24.0
     for tick in range(6):
         left_value = compression_max * tick / 5
         right_value = decode_max * tick / 5
@@ -396,17 +407,17 @@ def write_visual(path: Path, report: dict[str, Any]) -> None:
         right_x = right_plot_x + plot_width * tick / 5
         lines.extend(
             [
-                f'<line x1="{left_x:.1f}" y1="326" x2="{left_x:.1f}" y2="807" stroke="{grid}"/>',
-                f'<line x1="{right_x:.1f}" y1="326" x2="{right_x:.1f}" y2="807" stroke="{grid}"/>',
-                _text(left_x, 829, f"{left_value:.1f}x", css_class="axis", anchor="middle"),
-                _text(right_x, 829, f"{right_value:.0f}x", css_class="axis", anchor="middle"),
+                f'<line x1="{left_x:.1f}" y1="363" x2="{left_x:.1f}" y2="829" stroke="{grid}"/>',
+                f'<line x1="{right_x:.1f}" y1="363" x2="{right_x:.1f}" y2="829" stroke="{grid}"/>',
+                _text(left_x, 851, f"{left_value:.1f}x", css_class="axis", anchor="middle"),
+                _text(right_x, 851, f"{right_value:.0f}x", css_class="axis", anchor="middle"),
             ]
         )
     gate_x = right_plot_x + plot_width * 10.0 / decode_max
     lines.extend(
         [
-            f'<line x1="{gate_x:.1f}" y1="326" x2="{gate_x:.1f}" y2="807" stroke="{ink}" stroke-width="2" stroke-dasharray="5 5"/>',
-            _text(gate_x + 6, 338, "10x gate", css_class="axis"),
+            f'<line x1="{gate_x:.1f}" y1="363" x2="{gate_x:.1f}" y2="829" stroke="{ink}" stroke-width="2" stroke-dasharray="5 5"/>',
+            _text(gate_x + 6, 375, "10x gate / 10倍门槛", css_class="axis"),
         ]
     )
     for index, item in enumerate(characters):
@@ -442,9 +453,15 @@ def write_visual(path: Path, report: dict[str, Any]) -> None:
         [
             _text(
                 54,
-                872,
+                902,
                 "Fixed seed 20260801. Same 20 animation IDs for every character. File I/O excluded. "
                 "Full local rotations and root translation are checked; see JSON for per-clip results.",
+                css_class="note",
+            ),
+            _text(
+                54,
+                926,
+                "固定种子 20260801。每个角色使用相同 20 条动画。不含文件读写；完整检查局部旋转与根位移，逐条结果见 JSON。",
                 css_class="note",
             ),
             "</svg>",

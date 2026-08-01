@@ -6,14 +6,37 @@
 
 ## English
 
-SKAC packs character animation into much smaller `.skac` files and decodes them fast
-enough for real-time playback, helping cut animation package size without throwing away
-motion fidelity. One compressed animation can play back on its source character or,
-through a frozen Profile, on another public skeleton.
+SKAC turns character-animation libraries into much smaller deployable `.skac` assets
+and decodes them fast enough for real-time playback. For a shipped product, that means
+smaller builds and patches, lower distribution and storage costs, and room for more
+animation inside the same content budget. One compressed animation can play on its
+source character or, through a frozen Profile, on another public skeleton.
 
 This is the public academic side of that system. The repo makes compression and
 cross-skeleton playback measurable, and keeps their results separate so Codec
 reconstruction error cannot be presented as retargeting quality.
+
+### Codec performance snapshot / Codec 性能展示
+
+![SKAC Codec compression and whole-clip decode performance](reports/codec_showcase_8x20_public.svg)
+
+This fixed-seed public run compressed and decoded the same 20 randomly selected
+animations on eight characters: 160 BVH clips and 645.35 seconds of motion in total.
+The high preset produced a 5.95x size reduction against float32 animated channels,
+2.36x offline encode throughput, 70.74x whole-clip decode speed, and a 0.05145-degree
+maximum local rotation error. Even the slowest character remained above 52x real time.
+
+These are same-character Codec numbers, not cross-skeleton retargeting scores. File I/O
+is excluded and performance is machine-dependent. The complete environment, sample
+list, per-clip measurements, and checks are in
+[`codec_showcase_8x20_public.json`](reports/codec_showcase_8x20_public.json). Reproduce
+the run with:
+
+```text
+python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
+  --output reports/codec_showcase_8x20_public.json \
+  --visual reports/codec_showcase_8x20_public.svg
+```
 
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
@@ -24,6 +47,7 @@ public baseline.
 
 - `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
 - `skac-agent`: a versioned JSON/JSONL interface for other Agents and automation;
+- `native` and `integrations`: a C++ decoder plus Unity/Unreal Runtime Beta adapters;
 - `QUALITY_GATES.md`: frozen reconstruction and playback-performance limits;
 - `skac_codec.fbx`: an optional experimental Blender bridge for FBX characters;
 - `skac_public_core`: a deterministic NumPy-only cross-skeleton baseline;
@@ -70,6 +94,11 @@ For automated callers, `AGENT_CLI.md` defines the request envelope, path sandbox
 operations, responses, and exit codes. The stable Agent protocol covers the tested BVH
 workflow; it does not currently expose the experimental FBX bridge.
 
+For engine playback, `RUNTIME_BETA.md` documents the native C ABI and the Unity/Unreal
+source adapters. The Beta currently covers whole-clip same-character decoding; native
+Profile playback, streaming, and automatic engine coordinate conversion remain later
+work.
+
 ### Where the data goes
 
 Keep datasets, characters, motions, generated BVH files, checkpoints, and pretrained
@@ -98,28 +127,6 @@ The same `.skac` file can also target multiple BVH skeletons through hash-pinned
 one-time profiles. Profile 2.0 recognizes naming conventions, compiles hierarchy work
 and basis quaternions ahead of playback, and exposes a reusable frame runtime with
 caller-owned output buffers. See `FORMAT.md`, `RETARGETING.md`, and `QUALITY_GATES.md`.
-
-### Codec performance snapshot
-
-![SKAC Codec compression and whole-clip decode performance](reports/codec_showcase_8x20_public.svg)
-
-This fixed-seed public run compressed and decoded the same 20 randomly selected
-animations on eight characters: 160 BVH clips and 645.35 seconds of motion in total.
-The high preset produced a 5.95x size reduction against float32 animated channels,
-2.36x offline encode throughput, 70.74x whole-clip decode speed, and a 0.05145-degree
-maximum local rotation error. Even the slowest character remained above 52x real time.
-
-These are same-character Codec numbers, not cross-skeleton retargeting scores. File I/O
-is excluded and performance is machine-dependent. The complete environment, sample
-list, per-clip measurements, and checks are in
-[`codec_showcase_8x20_public.json`](reports/codec_showcase_8x20_public.json). Reproduce
-the run with:
-
-```text
-python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
-  --output reports/codec_showcase_8x20_public.json \
-  --visual reports/codec_showcase_8x20_public.svg
-```
 
 This is still a deterministic reference implementation. Production twist
 distribution, end-effector IK, and robust contact locking remain later milestones. An
@@ -165,12 +172,31 @@ downloaded materials keep their own licenses and terms.
 
 ## 中文
 
-SKAC 会把角色动画压成体积更小的 `.skac` 文件，并以足够实时播放的速度解码，帮助项目
-降低动画包体，同时尽量保住动作还原质量。同一份压缩动画既能回到原角色播放，也能通过
-冻结的 Profile 播放到另一套公开骨架。
+SKAC 会把角色动画库压成体积更小、可以直接发布的 `.skac` 资产，并以足够实时播放的速度
+解码。对产品来说，这意味着更小的安装包和补丁、更低的分发与存储成本，也意味着同样的
+内容预算可以装下更多动画。同一份压缩动画既能回到原角色播放，也能通过冻结的 Profile
+播放到另一套公开骨架。
 
 这里是它的公开学术分支，负责把压缩和跨骨骼播放都做成可测、可复现的流程，同时把两类
 结果分开，避免拿 Codec 还原误差冒充重定向质量。
+
+### Codec 性能展示 / Codec performance snapshot
+
+![SKAC Codec 压缩与整段解码性能](reports/codec_showcase_8x20_public.svg)
+
+这次公开测试固定了随机种子，让八个角色使用同一组随机抽出的 20 条动画，共 160 个 BVH、
+645.35 秒动作。high 档相对 float32 动画通道缩小 5.95 倍，整段解码达到 70.74 倍实时，
+离线编码达到 2.36 倍实时，最大局部旋转误差为 0.05145 度；最慢的角色也超过 52 倍实时。
+
+这些是同角色 Codec 数据，不是跨骨骼重定向分数。计时不包含文件读取，并且性能数字跟机器
+有关。完整环境、抽样名单、逐动画结果和门槛见
+[`codec_showcase_8x20_public.json`](reports/codec_showcase_8x20_public.json)。复现命令：
+
+```text
+python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
+  --output reports/codec_showcase_8x20_public.json \
+  --visual reports/codec_showcase_8x20_public.svg
+```
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的
@@ -180,6 +206,7 @@ SKAC 会把角色动画压成体积更小的 `.skac` 文件，并以足够实时
 
 - `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
 - `skac-agent`：给其他 Agent 和自动化程序调用的版本化 JSON/JSONL 接口；
+- `native` 和 `integrations`：C++ 解码核心，以及 Unity/Unreal Runtime Beta 适配层；
 - `QUALITY_GATES.md`：固定的还原质量和播放性能门槛；
 - `skac_codec.fbx`：通过 Blender 处理 FBX 角色的可选实验适配层；
 - `skac_public_core`：只依赖 NumPy 的确定性跨骨骼基线；
@@ -222,6 +249,10 @@ python tools/audit_release.py .
 自动化调用的请求格式、路径沙箱、响应和退出码都写在 `AGENT_CLI.md`。稳定版 Agent
 协议目前只覆盖已经验证过的 BVH 流程，不开放实验性的 FBX 桥。
 
+引擎运行时接入见 `RUNTIME_BETA.md`，里面说明了原生 C ABI 和 Unity/Unreal 源码适配层。
+当前 Beta 覆盖整段载入和同角色解码；原生 Profile 播放、流式解码和引擎坐标自动转换仍是
+后续工作。
+
 ### 数据放哪
 
 数据集、角色、动作、生成的 BVH、检查点和预训练权重都放在仓库外面。运行时指定一个数据
@@ -244,24 +275,6 @@ python tools/audit_release.py .
 Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换四元数；逐帧运行时复用缓冲区，
 不再临时做骨架匹配和矩阵转换。具体见 `FORMAT.md`、`RETARGETING.md` 和
 `QUALITY_GATES.md`。
-
-### Codec 性能展示
-
-![SKAC Codec 压缩与整段解码性能](reports/codec_showcase_8x20_public.svg)
-
-这次公开测试固定了随机种子，让八个角色使用同一组随机抽出的 20 条动画，共 160 个 BVH、
-645.35 秒动作。high 档相对 float32 动画通道缩小 5.95 倍，整段解码达到 70.74 倍实时，
-离线编码达到 2.36 倍实时，最大局部旋转误差为 0.05145 度；最慢的角色也超过 52 倍实时。
-
-这些是同角色 Codec 数据，不是跨骨骼重定向分数。计时不包含文件读取，并且性能数字跟机器
-有关。完整环境、抽样名单、逐动画结果和门槛见
-[`codec_showcase_8x20_public.json`](reports/codec_showcase_8x20_public.json)。复现命令：
-
-```text
-python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
-  --output reports/codec_showcase_8x20_public.json \
-  --visual reports/codec_showcase_8x20_public.svg
-```
 
 这仍然是确定性参考实现。生产级 Twist 分配、末端 IK 和稳定接触锁定仍是后续里程碑。
 仓库已经包含实验性的 Blender FBX 适配层，但这台开发机还没有完成真实 FBX 往返验证；
