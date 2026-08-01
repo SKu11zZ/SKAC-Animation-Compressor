@@ -56,6 +56,9 @@ class CodecShowcaseTests(unittest.TestCase):
             svg = svg_path.read_text(encoding="utf-8").casefold()
         self.assertTrue(restored["passed"])
         self.assertEqual(restored["sampling"]["sample_count"], 2)
+        self.assertIn("mib", svg)
+        self.assertIn("decode · milliseconds", svg)
+        self.assertNotIn("realtime", svg)
         self.assertNotIn("<script", svg)
 
 

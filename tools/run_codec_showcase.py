@@ -299,153 +299,229 @@ def _text(
 
 
 def write_visual(path: Path, report: dict[str, Any]) -> None:
-    width, height = 1400, 950
-    ink = "#17202a"
-    muted = "#667085"
-    grid = "#d7dee7"
-    blue = "#2864dc"
-    blue_open = "#dbe8ff"
-    gold = "#c98a16"
-    gold_open = "#f8e7bd"
-    surface = "#f7f9fc"
+    """Write the concrete-value, bilingual public benchmark graphic."""
+    width, height = 1400, 960
+    paper = "#f4f2ed"
+    ink = "#151515"
+    muted = "#686763"
+    grid = "#d2d0ca"
+    accent = "#ff4f00"
+    accent_open = "#ffd8c7"
+    white = "#ffffff"
     characters = report["characters"]
     overall = report["overall"]
     sample_count = int(report["sampling"]["sample_count"])
     animation_count = int(report["sampling"]["animations_per_character"])
     decode_iterations = int(report["decode_iterations"])
-    compression_max = max(
-        5.0,
-        max(float(item["compression_ratio_vs_float32_channels"]) for item in characters)
-        * 1.15,
+    mib = 1024.0 * 1024.0
+    raw_mib = float(overall["raw_channel_bytes_float32"]) / mib
+    encoded_mib = float(overall["encoded_bytes"]) / mib
+    saved_mib = raw_mib - encoded_mib
+    playback_seconds = float(overall["playback_budget_seconds"])
+    encode_seconds = playback_seconds / float(overall["encode_realtime_factor"])
+    decode_seconds = playback_seconds / float(overall["decode_realtime_factor"])
+    raw_max = max(
+        1.0,
+        max(float(item["raw_channel_bytes_float32"]) / mib for item in characters)
+        * 1.08,
     )
-    decode_max = max(
-        20.0,
-        max(float(item["decode_realtime_factor"]) for item in characters) * 1.15,
+    encode_max = max(
+        1.0,
+        max(
+            float(item["playback_budget_seconds"])
+            / float(item["encode_realtime_factor"])
+            for item in characters
+        )
+        * 1.08,
+    )
+    decode_max_ms = max(
+        1.0,
+        max(
+            1000.0
+            * float(item["playback_budget_seconds"])
+            / float(item["decode_realtime_factor"])
+            for item in characters
+        )
+        * 1.08,
     )
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
-        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<rect width="{width}" height="{height}" fill="{paper}"/>',
         "<style>",
         "text{font-family:Inter,Segoe UI,Arial,sans-serif}",
-        f".title{{font-size:34px;font-weight:750;fill:{ink}}}",
-        f".subtitle{{font-size:15px;fill:{muted}}}",
-        f".kpi{{font-size:30px;font-weight:750;fill:{ink}}}",
-        f".kpilabel{{font-size:13px;font-weight:650;fill:{muted};letter-spacing:.5px}}",
-        f".panel{{font-size:18px;font-weight:700;fill:{ink}}}",
-        f".label{{font-size:14px;font-weight:600;fill:{ink}}}",
-        f".value{{font-size:13px;font-weight:700;fill:{ink}}}",
-        f".axis{{font-size:12px;fill:{muted}}}",
-        f".note{{font-size:12px;fill:{muted}}}",
+        f".eyebrow{{font-size:12px;font-weight:750;fill:{muted};letter-spacing:2px}}",
+        f".title{{font-size:39px;font-weight:800;fill:{ink};letter-spacing:-1px}}",
+        f".subtitle{{font-size:14px;fill:{muted}}}",
+        f".kpi{{font-size:36px;font-weight:800;fill:{ink};letter-spacing:-1px}}",
+        f".kpiaccent{{font-size:36px;font-weight:800;fill:{accent};letter-spacing:-1px}}",
+        f".kpilabel{{font-size:12px;font-weight:750;fill:{muted};letter-spacing:1.1px}}",
+        f".panel{{font-size:19px;font-weight:750;fill:{ink}}}",
+        f".label{{font-size:13px;font-weight:650;fill:{ink}}}",
+        f".value{{font-size:12px;font-weight:750;fill:{ink}}}",
+        f".valueaccent{{font-size:12px;font-weight:750;fill:{accent}}}",
+        f".axis{{font-size:11px;fill:{muted}}}",
+        f".note{{font-size:11px;fill:{muted}}}",
         "</style>",
-        _text(54, 58, "SKAC Codec Performance / SKAC Codec 性能展示", css_class="title"),
+        _text(54, 40, "PUBLIC BENCHMARK · FIXED SEED 20260801", css_class="eyebrow"),
+        _text(54, 88, "SKAC Codec — 160-Clip Public Run", css_class="title"),
         _text(
             54,
-            88,
-            f"8 public characters x {animation_count} shared random animations | "
-            f"{sample_count} BVH clips | high quality | whole-clip decode",
+            118,
+            f"8 public characters · {animation_count} shared clips each · {sample_count} BVH files · "
+            f"{playback_seconds:.2f} seconds of motion · high preset",
             css_class="subtitle",
         ),
         _text(
             54,
-            110,
-            f"8 个公开角色 × {animation_count} 条共享随机动画 | {sample_count} 个 BVH | "
-            "high 质量档 | 整段解码",
+            142,
+            f"8 个公开角色 · 每个角色 {animation_count} 条相同动画 · 共 {sample_count} 条 BVH · "
+            f"动画总时长 {playback_seconds:.2f} 秒 · high 档",
             css_class="subtitle",
         ),
-    ]
-
-    cards = [
-        (
-            f'{overall["compression_ratio_vs_float32_channels"]:.2f}x',
-            "SMALLER THAN FLOAT32 CHANNELS",
-            "相比 FLOAT32 动画通道的缩小倍数",
+        f'<line x1="54" y1="166" x2="1346" y2="166" stroke="{ink}" stroke-width="2"/>',
+        f'<line x1="54" y1="166" x2="226" y2="166" stroke="{accent}" stroke-width="5"/>',
+        _text(54, 201, "STORAGE / 存储", css_class="kpilabel"),
+        _text(54, 250, f"{raw_mib:.2f} MiB", css_class="kpi"),
+        _text(265, 249, "→", css_class="panel"),
+        _text(310, 250, f"{encoded_mib:.2f} MiB", css_class="kpiaccent"),
+        _text(
+            54,
+            278,
+            f"Float32 channels → .skac bytes · {saved_mib:.2f} MiB removed",
+            css_class="subtitle",
         ),
-        (f'{overall["encode_realtime_factor"]:.2f}x', "OFFLINE ENCODE REALTIME", "离线编码实时倍速"),
-        (f'{overall["decode_realtime_factor"]:.1f}x', "WHOLE-CLIP DECODE REALTIME", "整段解码实时倍速"),
-        (f'{overall["rotation_error_degrees_max"]:.4f} deg', "MAX ROTATION ERROR", "最大旋转误差"),
+        f'<line x1="568" y1="192" x2="568" y2="282" stroke="{grid}"/>',
+        _text(606, 201, "ENCODE / 编码", css_class="kpilabel"),
+        _text(606, 250, f"{encode_seconds:.2f} s", css_class="kpi"),
+        _text(606, 278, f"{sample_count} clips total", css_class="subtitle"),
+        f'<line x1="837" y1="192" x2="837" y2="282" stroke="{grid}"/>',
+        _text(875, 201, "DECODE / 解码", css_class="kpilabel"),
+        _text(875, 250, f"{decode_seconds:.2f} s", css_class="kpiaccent"),
+        _text(
+            875,
+            278,
+            f"whole-clip median · {decode_iterations} runs",
+            css_class="subtitle",
+        ),
+        f'<line x1="1114" y1="192" x2="1114" y2="282" stroke="{grid}"/>',
+        _text(1152, 201, "MAX ERROR / 最大误差", css_class="kpilabel"),
+        _text(
+            1152,
+            250,
+            f'{overall["rotation_error_degrees_max"]:.5f}°',
+            css_class="kpi",
+        ),
+        _text(1152, 278, "local rotation", css_class="subtitle"),
+        f'<rect x="54" y="310" width="1292" height="38" fill="{white}"/>',
+        _text(
+            72,
+            335,
+            "READ IT AS: exact stored bytes on the left; exact measured processing time on the right.",
+            css_class="label",
+        ),
+        _text(
+            1328,
+            335,
+            "左边看体积，右边看实测耗时",
+            css_class="label",
+            anchor="end",
+        ),
     ]
-    card_y, card_height = 140, 116
-    card_width = 306
-    for index, (value, label, chinese_label) in enumerate(cards):
-        x = 54 + index * 332
-        lines.append(
-            f'<rect x="{x}" y="{card_y}" width="{card_width}" height="{card_height}" '
-            f'rx="10" fill="{surface}" stroke="{grid}"/>'
-        )
-        lines.append(_text(x + 22, card_y + 48, value, css_class="kpi"))
-        lines.append(_text(x + 22, card_y + 78, label, css_class="kpilabel"))
-        lines.append(_text(x + 22, card_y + 100, chinese_label, css_class="subtitle"))
 
-    panel_y = 308
+    panel_y = 390
     lines.extend(
         [
-            _text(54, panel_y, "Compression ratio by character / 各角色压缩比", css_class="panel"),
+            _text(54, panel_y, "Stored bytes by character / 每个角色实际占用", css_class="panel"),
             _text(
                 54,
                 panel_y + 24,
-                "Aggregate raw float32 channel bytes / encoded bytes; higher is better",
+                "Twenty clips combined · both bars share the same MiB scale",
                 css_class="subtitle",
             ),
-            _text(54, panel_y + 44, "原始 float32 通道字节 ÷ 压缩后字节；越高越好", css_class="subtitle"),
-            _text(746, panel_y, "Whole-clip decode speed / 各角色整段解码速度", css_class="panel"),
             _text(
-                746,
-                panel_y + 24,
-                f"Aggregate animation duration / median decode time ({decode_iterations} runs per clip)",
+                54,
+                panel_y + 44,
+                "每个角色合计 20 条动画 · 两条柱使用同一 MiB 刻度",
                 css_class="subtitle",
             ),
-            _text(746, panel_y + 44, f"动画总时长 ÷ 解码中位耗时；每条重复 {decode_iterations} 次", css_class="subtitle"),
+            _text(744, panel_y, "Measured processing time / 实测处理耗时", css_class="panel"),
+            _text(
+                744,
+                panel_y + 24,
+                "Exact totals for twenty clips · file I/O excluded",
+                css_class="subtitle",
+            ),
+            _text(
+                744,
+                panel_y + 44,
+                "每个角色 20 条动画的累计耗时 · 不含文件读写",
+                css_class="subtitle",
+            ),
         ]
     )
-    left_plot_x, right_plot_x = 190.0, 882.0
-    plot_width = 430.0
-    row_start, row_gap, bar_height = 378.0, 56.0, 24.0
-    for tick in range(6):
-        left_value = compression_max * tick / 5
-        right_value = decode_max * tick / 5
-        left_x = left_plot_x + plot_width * tick / 5
-        right_x = right_plot_x + plot_width * tick / 5
-        lines.extend(
-            [
-                f'<line x1="{left_x:.1f}" y1="363" x2="{left_x:.1f}" y2="829" stroke="{grid}"/>',
-                f'<line x1="{right_x:.1f}" y1="363" x2="{right_x:.1f}" y2="829" stroke="{grid}"/>',
-                _text(left_x, 851, f"{left_value:.1f}x", css_class="axis", anchor="middle"),
-                _text(right_x, 851, f"{right_value:.0f}x", css_class="axis", anchor="middle"),
-            ]
-        )
-    gate_x = right_plot_x + plot_width * 10.0 / decode_max
+    left_plot_x, left_plot_width = 170.0, 310.0
+    encode_plot_x, encode_plot_width = 842.0, 142.0
+    decode_plot_x, decode_plot_width = 1132.0, 142.0
+    row_start, row_gap = 468.0, 54.0
     lines.extend(
         [
-            f'<line x1="{gate_x:.1f}" y1="363" x2="{gate_x:.1f}" y2="829" stroke="{ink}" stroke-width="2" stroke-dasharray="5 5"/>',
-            _text(gate_x + 6, 375, "10x gate / 10倍门槛", css_class="axis"),
+            f'<rect x="54" y="438" width="12" height="12" fill="{ink}"/>',
+            _text(74, 448, "FLOAT32", css_class="axis"),
+            f'<rect x="137" y="438" width="12" height="12" fill="{accent}"/>',
+            _text(157, 448, "SKAC", css_class="axis"),
+            _text(688, 448, "RAW → SKAC", css_class="axis", anchor="end"),
+            _text(842, 448, "ENCODE · SECONDS", css_class="axis"),
+            _text(1132, 448, "DECODE · MILLISECONDS", css_class="axis"),
         ]
     )
     for index, item in enumerate(characters):
         y = row_start + index * row_gap
         character = str(item["character"])
-        compression = float(item["compression_ratio_vs_float32_channels"])
-        decode = float(item["decode_realtime_factor"])
-        compression_width = plot_width * compression / compression_max
-        decode_width = plot_width * decode / decode_max
+        item_raw_mib = float(item["raw_channel_bytes_float32"]) / mib
+        item_encoded_mib = float(item["encoded_bytes"]) / mib
+        item_encode_seconds = (
+            float(item["playback_budget_seconds"])
+            / float(item["encode_realtime_factor"])
+        )
+        item_decode_ms = (
+            1000.0
+            * float(item["playback_budget_seconds"])
+            / float(item["decode_realtime_factor"])
+        )
+        raw_width = left_plot_width * item_raw_mib / raw_max
+        encoded_width = left_plot_width * item_encoded_mib / raw_max
+        encode_width = encode_plot_width * item_encode_seconds / encode_max
+        decode_width = decode_plot_width * item_decode_ms / decode_max_ms
         lines.extend(
             [
-                _text(left_plot_x - 14, y + 17, character, css_class="label", anchor="end"),
-                f'<rect x="{left_plot_x:.1f}" y="{y:.1f}" width="{plot_width:.1f}" height="{bar_height}" rx="4" fill="{blue_open}"/>',
-                f'<rect x="{left_plot_x:.1f}" y="{y:.1f}" width="{compression_width:.1f}" height="{bar_height}" rx="4" fill="{blue}"/>',
+                f'<line x1="54" y1="{y + 37:.1f}" x2="1346" y2="{y + 37:.1f}" stroke="{grid}"/>',
                 _text(
-                    left_plot_x + compression_width + 8,
-                    y + 17,
-                    f"{compression:.2f}x",
-                    css_class="value",
+                    left_plot_x - 14,
+                    y + 15,
+                    character,
+                    css_class="label",
+                    anchor="end",
                 ),
-                _text(right_plot_x - 14, y + 17, character, css_class="label", anchor="end"),
-                f'<rect x="{right_plot_x:.1f}" y="{y:.1f}" width="{plot_width:.1f}" height="{bar_height}" rx="4" fill="{gold_open}"/>',
-                f'<rect x="{right_plot_x:.1f}" y="{y:.1f}" width="{decode_width:.1f}" height="{bar_height}" rx="4" fill="{gold}"/>',
+                f'<rect x="{left_plot_x:.1f}" y="{y:.1f}" width="{raw_width:.1f}" height="8" fill="{ink}"/>',
+                f'<rect x="{left_plot_x:.1f}" y="{y + 11:.1f}" width="{encoded_width:.1f}" height="8" fill="{accent}"/>',
                 _text(
-                    right_plot_x + decode_width + 8,
-                    y + 17,
-                    f"{decode:.1f}x",
+                    688,
+                    y + 15,
+                    f"{item_raw_mib:.2f} → {item_encoded_mib:.2f} MiB",
                     css_class="value",
+                    anchor="end",
+                ),
+                _text(812, y + 15, character, css_class="label", anchor="end"),
+                f'<rect x="{encode_plot_x:.1f}" y="{y + 2:.1f}" width="{encode_plot_width:.1f}" height="14" fill="{white}" stroke="{grid}"/>',
+                f'<rect x="{encode_plot_x:.1f}" y="{y + 2:.1f}" width="{encode_width:.1f}" height="14" fill="{ink}"/>',
+                _text(994, y + 15, f"{item_encode_seconds:.2f} s", css_class="value"),
+                f'<rect x="{decode_plot_x:.1f}" y="{y + 2:.1f}" width="{decode_plot_width:.1f}" height="14" fill="{accent_open}" stroke="{grid}"/>',
+                f'<rect x="{decode_plot_x:.1f}" y="{y + 2:.1f}" width="{decode_width:.1f}" height="14" fill="{accent}"/>',
+                _text(
+                    1284,
+                    y + 15,
+                    f"{item_decode_ms:,.0f} ms",
+                    css_class="valueaccent",
                 ),
             ]
         )
@@ -453,15 +529,15 @@ def write_visual(path: Path, report: dict[str, Any]) -> None:
         [
             _text(
                 54,
-                902,
-                "Fixed seed 20260801. Same 20 animation IDs for every character. File I/O excluded. "
-                "Full local rotations and root translation are checked; see JSON for per-clip results.",
+                920,
+                f"Decode value is the sum of per-clip medians across {decode_iterations} runs. "
+                "Full local rotations and root translation are checked. Timing is machine-dependent.",
                 css_class="note",
             ),
             _text(
                 54,
-                926,
-                "固定种子 20260801。每个角色使用相同 20 条动画。不含文件读写；完整检查局部旋转与根位移，逐条结果见 JSON。",
+                942,
+                "解码值为每条动画重复测量后的中位数之和；完整检查局部旋转与根位移。计时结果与机器有关，逐条数据见 JSON。",
                 css_class="note",
             ),
             "</svg>",

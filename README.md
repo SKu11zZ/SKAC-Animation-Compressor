@@ -28,9 +28,9 @@ reconstruction error cannot be presented as retargeting quality.
 
 This fixed-seed public run compressed and decoded the same 20 randomly selected
 animations on eight characters: 160 BVH clips and 645.35 seconds of motion in total.
-The high preset produced a 5.95x size reduction against float32 animated channels,
-2.36x offline encode throughput, 70.74x whole-clip decode speed, and a 0.05145-degree
-maximum local rotation error. Even the slowest character remained above 52x real time.
+The high preset stored 32.57 MiB of float32 animated channels in 5.48 MiB of `.skac`
+files, removing 27.09 MiB. Encoding all 160 clips took 273.94 seconds; summed median
+whole-clip decode time was 9.12 seconds. Maximum local rotation error was 0.05145 degrees.
 
 These are same-character Codec numbers, not cross-skeleton retargeting scores. File I/O
 is excluded and performance is machine-dependent. The complete environment, sample
@@ -201,8 +201,9 @@ SKAC 会把角色动画库压成体积更小、可以直接发布的 `.skac` 资
 ![SKAC Codec 压缩与整段解码性能](reports/codec_showcase_8x20_public.svg)
 
 这次公开测试固定了随机种子，让八个角色使用同一组随机抽出的 20 条动画，共 160 个 BVH、
-645.35 秒动作。high 档相对 float32 动画通道缩小 5.95 倍，整段解码达到 70.74 倍实时，
-离线编码达到 2.36 倍实时，最大局部旋转误差为 0.05145 度；最慢的角色也超过 52 倍实时。
+645.35 秒动作。high 档把 32.57 MiB 的 float32 动画通道存成了 5.48 MiB 的 `.skac` 文件，
+实际减少 27.09 MiB；160 条动画累计编码耗时 273.94 秒，整段解码中位耗时之和为 9.12 秒，
+最大局部旋转误差为 0.05145 度。
 
 这些是同角色 Codec 数据，不是跨骨骼重定向分数。计时不包含文件读取，并且性能数字跟机器
 有关。完整环境、抽样名单、逐动画结果和门槛见
