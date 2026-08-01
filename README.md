@@ -19,6 +19,7 @@ public baseline.
 ### What is here
 
 - `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
+- `skac-agent`: a versioned JSON/JSONL interface for other Agents and automation;
 - `skac_codec.fbx`: an optional experimental Blender bridge for FBX characters;
 - `skac_public_core`: a deterministic NumPy-only cross-skeleton baseline;
 - `skac_benchmark`: manifest loading, validation, metrics, and the command-line runner;
@@ -48,6 +49,8 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+skac-agent capabilities --pretty
+skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
@@ -55,6 +58,10 @@ python tools/audit_release.py .
 
 Run the commands from the repo root. Make a copy of the manifest template for your
 experiment; do not put local dataset manifests into Git.
+
+For automated callers, `AGENT_CLI.md` defines the request envelope, path sandbox,
+operations, responses, and exit codes. The stable Agent protocol covers the tested BVH
+workflow; it does not currently expose the experimental FBX bridge.
 
 ### Where the data goes
 
@@ -137,6 +144,7 @@ downloaded materials keep their own licenses and terms.
 ### 这里现在有什么
 
 - `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
+- `skac-agent`：给其他 Agent 和自动化程序调用的版本化 JSON/JSONL 接口；
 - `skac_codec.fbx`：通过 Blender 处理 FBX 角色的可选实验适配层；
 - `skac_public_core`：只依赖 NumPy 的确定性跨骨骼基线；
 - `skac_benchmark`：清单读取、合法性检查、指标和命令行入口；
@@ -164,12 +172,17 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+skac-agent capabilities --pretty
+skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
 
 在仓库根目录运行。正式实验时复制一份清单模板来填，不要把本机的数据清单提交进 Git。
+
+自动化调用的请求格式、路径沙箱、响应和退出码都写在 `AGENT_CLI.md`。稳定版 Agent
+协议目前只覆盖已经验证过的 BVH 流程，不开放实验性的 FBX 桥。
 
 ### 数据放哪
 

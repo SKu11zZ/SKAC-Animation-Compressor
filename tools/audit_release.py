@@ -15,6 +15,7 @@ TEXT_FILENAMES = {".gitattributes", ".gitignore", "LICENSE"}
 ALLOWED_TOP_LEVEL = {
     ".gitattributes",
     ".gitignore",
+    "AGENT_CLI.md",
     "CITATION.cff",
     "FBX.md",
     "FORMAT.md",

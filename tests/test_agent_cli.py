@@ -1,0 +1,167 @@
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from skac_codec.agent import PROTOCOL, execute_request, main
+
+
+SINGLE_JOINT_BVH = """HIERARCHY
+ROOT Root
+{
+  OFFSET 0 0 0
+  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation
+  End Site
+  {
+    OFFSET 0 1 0
+  }
+}
+MOTION
+Frames: 3
+Frame Time: 0.0333333333
+0 0 0 0 0 0
+1 0 0 5 0 0
+2 0 0 10 0 0
+"""
+
+
+def request(request_id: str, operation: str, **arguments: object) -> dict[str, object]:
+    return {
+        "protocol": PROTOCOL,
+        "request_id": request_id,
+        "operation": operation,
+        "arguments": arguments,
+    }
+
+
+class AgentCliTests(unittest.TestCase):
+    def test_capabilities_are_machine_readable(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(main(["capabilities"]), 0)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["protocol"], PROTOCOL)
+        self.assertIn("encode", report["operations"])
+
+    def test_encode_inspect_decode_and_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            (workspace / "motions").mkdir()
+            (workspace / "motions" / "source.bvh").write_text(
+                SINGLE_JOINT_BVH, encoding="utf-8"
+            )
+
+            encoded, status = execute_request(
+                request(
+                    "e1",
+                    "encode",
+                    input="motions/source.bvh",
+                    output="artifacts/motion.skac",
+                    quality="high",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(encoded["ok"])
+            self.assertEqual(encoded["result"]["artifact"]["path"], "artifacts/motion.skac")
+
+            inspected, status = execute_request(
+                request("i1", "inspect", input="artifacts/motion.skac"), workspace
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(inspected["result"]["format_major"], 1)
+
+            profiled, status = execute_request(
+                request(
+                    "p1",
+                    "profile",
+                    source="artifacts/motion.skac",
+                    target="motions/source.bvh",
+                    output="profiles/target.json",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(profiled["result"]["mapped_joint_count"], 1)
+
+            decoded, status = execute_request(
+                request(
+                    "d1",
+                    "decode",
+                    input="artifacts/motion.skac",
+                    target="motions/source.bvh",
+                    profile="profiles/target.json",
+                    output="results/restored.bvh",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(decoded["result"]["retargeted"])
+            self.assertTrue((workspace / "results" / "restored.bvh").is_file())
+
+    def test_rejects_path_escape_unknown_fields_and_implicit_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            escaped, status = execute_request(
+                request("bad-path", "inspect", input="../motion.skac"), workspace
+            )
+            self.assertEqual(status, 2)
+            self.assertEqual(escaped["error"]["code"], "invalid_request")
+
+            unknown, status = execute_request(
+                request("bad-field", "inspect", input="motion.skac", typo=True), workspace
+            )
+            self.assertEqual(status, 2)
+            self.assertIn("unknown fields", unknown["error"]["message"])
+
+            (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            (workspace / "motion.skac").write_bytes(b"keep")
+            existing, status = execute_request(
+                request("existing", "encode", input="source.bvh", output="motion.skac"),
+                workspace,
+            )
+            self.assertEqual(status, 2)
+            self.assertEqual((workspace / "motion.skac").read_bytes(), b"keep")
+
+    def test_jsonl_continues_after_invalid_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            payload = "\n".join(
+                [
+                    json.dumps(request("bad", "missing")),
+                    json.dumps(
+                        request(
+                            "good",
+                            "encode",
+                            input="source.bvh",
+                            output="motion.skac",
+                        )
+                    ),
+                ]
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                original = __import__("sys").stdin
+                try:
+                    __import__("sys").stdin = io.TextIOWrapper(
+                        io.BytesIO(payload.encode("utf-8")), encoding="utf-8"
+                    )
+                    self.assertEqual(
+                        main(["run", "--workspace", str(workspace), "--jsonl"]), 2
+                    )
+                finally:
+                    __import__("sys").stdin = original
+            responses = [json.loads(line) for line in output.getvalue().splitlines()]
+            self.assertEqual([item["request_id"] for item in responses], ["bad", "good"])
+            self.assertFalse(responses[0]["ok"])
+            self.assertTrue(responses[1]["ok"])
+            self.assertTrue((workspace / "motion.skac").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()

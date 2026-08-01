@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skac-academic-benchmark"
-version = "0.4.0"
+version = "0.5.0"
 description = "Public benchmark for motion retargeting and animation codec reconstruction"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ Issues = "https://github.com/SKu11zZ/SKAC-Animation-Compressor/issues"
 
 [project.scripts]
 skac = "skac_codec.cli:main"
+skac-agent = "skac_codec.agent:main"
 skac-benchmark = "skac_benchmark.cli:main"
 
 [tool.setuptools.packages.find]
