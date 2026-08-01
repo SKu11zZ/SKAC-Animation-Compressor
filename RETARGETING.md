@@ -1,5 +1,10 @@
 # Frozen multi-target Codec playback
 
+Same-character playback does not use this system: it decodes the `.skac` animation
+directly back onto its hash-pinned source skeleton. Profiles are only compiled for the
+different-character route, so their setup and per-frame cost never appear in the
+same-character quality report.
+
 The public runtime decodes one source-bound `.skac` animation and applies a frozen,
 precompiled source-to-target profile. A target character is supplied as a BVH template;
 its skeleton, channel order, rest offsets, and end sites are preserved in the output.

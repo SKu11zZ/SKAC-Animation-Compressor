@@ -35,6 +35,24 @@ class AgentRequestError(ValueError):
 
 
 def capabilities() -> dict[str, Any]:
+    codec_gate_optional = [
+        "overwrite",
+        "quality",
+        "rotation_bits",
+        "translation_bits",
+        "rotation_error_degrees",
+        "translation_error_fraction",
+        "zlib_level",
+        "minimum_decode_realtime_factor",
+        "decode_iterations",
+    ]
+    different_gate_optional = codec_gate_optional + [
+        "minimum_core_coverage",
+        "maximum_retarget_frame_ms",
+        "minimum_pipeline_realtime_factor",
+        "pipeline_iterations",
+        "frame_samples",
+    ]
     return {
         "protocol": PROTOCOL,
         "transports": ["single-json", "json-lines"],
@@ -61,24 +79,18 @@ def capabilities() -> dict[str, Any]:
                 "required": ["source", "target", "output"],
                 "optional": ["overwrite", "up_axis", "contact_lock"],
             },
+            "quality_gate_same": {
+                "required": ["source", "report", "visual"],
+                "optional": codec_gate_optional,
+            },
+            "quality_gate_different": {
+                "required": ["source", "target", "report", "visual"],
+                "optional": different_gate_optional,
+            },
             "quality_gate": {
                 "required": ["source", "target", "report", "visual"],
-                "optional": [
-                    "overwrite",
-                    "quality",
-                    "rotation_bits",
-                    "translation_bits",
-                    "rotation_error_degrees",
-                    "translation_error_fraction",
-                    "zlib_level",
-                    "minimum_core_coverage",
-                    "maximum_retarget_frame_ms",
-                    "minimum_decode_realtime_factor",
-                    "minimum_pipeline_realtime_factor",
-                    "decode_iterations",
-                    "pipeline_iterations",
-                    "frame_samples",
-                ],
+                "optional": different_gate_optional,
+                "compatibility": True,
             },
         },
         "exit_codes": {
@@ -323,8 +335,12 @@ def _profile(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
-    optional = {
+def _quality_gate_impl(
+    workspace: Path,
+    arguments: dict[str, Any],
+    evaluation_case: str,
+) -> dict[str, Any]:
+    codec_optional = {
         "overwrite",
         "quality",
         "rotation_bits",
@@ -332,26 +348,35 @@ def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
         "rotation_error_degrees",
         "translation_error_fraction",
         "zlib_level",
+        "minimum_decode_realtime_factor",
+        "decode_iterations",
+    }
+    different_optional = codec_optional | {
         "minimum_core_coverage",
         "maximum_retarget_frame_ms",
-        "minimum_decode_realtime_factor",
         "minimum_pipeline_realtime_factor",
-        "decode_iterations",
         "pipeline_iterations",
         "frame_samples",
     }
+    same_character = evaluation_case == "same_character"
     _strict_fields(
         arguments,
-        required={"source", "target", "report", "visual"},
-        optional=optional,
+        required=(
+            {"source", "report", "visual"}
+            if same_character
+            else {"source", "target", "report", "visual"}
+        ),
+        optional=codec_optional if same_character else different_optional,
         label="arguments",
     )
     source_path = _relative_path(
         workspace, arguments["source"], "arguments.source", input_file=True
     )
-    target_path = _relative_path(
-        workspace, arguments["target"], "arguments.target", input_file=True
-    )
+    target_path = None
+    if not same_character:
+        target_path = _relative_path(
+            workspace, arguments["target"], "arguments.target", input_file=True
+        )
     overwrite = _boolean(arguments.get("overwrite", False), "arguments.overwrite")
     outputs: dict[str, Path] = {}
     for name in ("report", "visual"):
@@ -399,19 +424,25 @@ def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             "minimum_pipeline_realtime_factor", thresholds.minimum_pipeline_realtime_factor
         ),
     )
+    source = read_bvh(source_path)
+    target_skeleton = (
+        source.skeleton if target_path is None else read_bvh(target_path).skeleton
+    )
     report = run_quality_gate(
-        read_bvh(source_path),
-        read_bvh(target_path).skeleton,
+        source,
+        target_skeleton,
         settings=settings,
         thresholds=thresholds,
         decode_iterations=integer("decode_iterations", 5),
         pipeline_iterations=integer("pipeline_iterations", 3),
         frame_samples=integer("frame_samples", 300),
+        evaluation_case=evaluation_case,
     )
     write_quality_report_json(outputs["report"], report)
     write_quality_report_svg(outputs["visual"], report)
     return {
         "passed": report["passed"],
+        "evaluation_case": report["evaluation_case"],
         "failed_checks": [item["id"] for item in report["checks"] if not item["passed"]],
         "report": _display_path(workspace, outputs["report"]),
         "visual": _display_path(workspace, outputs["visual"]),
@@ -419,11 +450,27 @@ def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _quality_gate_same(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    return _quality_gate_impl(workspace, arguments, "same_character")
+
+
+def _quality_gate_different(
+    workspace: Path, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    return _quality_gate_impl(workspace, arguments, "different_character")
+
+
+def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    return _quality_gate_impl(workspace, arguments, "auto")
+
+
 _OPERATIONS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "encode": _encode,
     "inspect": _inspect,
     "decode": _decode,
     "profile": _profile,
+    "quality_gate_same": _quality_gate_same,
+    "quality_gate_different": _quality_gate_different,
     "quality_gate": _quality_gate,
 }
 

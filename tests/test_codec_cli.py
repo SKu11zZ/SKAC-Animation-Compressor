@@ -94,6 +94,65 @@ class CodecCliTests(unittest.TestCase):
             self.assertEqual(json.loads(output.getvalue())["command"], "decode-retarget")
             self.assertEqual(loads_bvh(retargeted.read_text(encoding="utf-8")).frame_count, 3)
 
+    def test_quality_gate_cli_routes_are_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.bvh"
+            source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+
+            same_json = root / "same.json"
+            same_svg = root / "same.svg"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "quality-gate-same",
+                            str(source),
+                            "--output",
+                            str(same_json),
+                            "--visual",
+                            str(same_svg),
+                            "--decode-iterations",
+                            "1",
+                        ]
+                    ),
+                    0,
+                )
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["command"], "quality-gate-same")
+            self.assertEqual(result["evaluation_case"], "same_character")
+
+            different_json = root / "different.json"
+            different_svg = root / "different.svg"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "quality-gate-different",
+                            str(source),
+                            str(source),
+                            "--output",
+                            str(different_json),
+                            "--visual",
+                            str(different_svg),
+                            "--minimum-core-coverage",
+                            "0",
+                            "--decode-iterations",
+                            "1",
+                            "--pipeline-iterations",
+                            "1",
+                            "--frame-samples",
+                            "10",
+                        ]
+                    ),
+                    0,
+                )
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["command"], "quality-gate-different")
+            self.assertEqual(result["evaluation_case"], "different_character")
+
 
 if __name__ == "__main__":
     unittest.main()

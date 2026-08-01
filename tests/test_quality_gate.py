@@ -26,6 +26,7 @@ class QualityGateTests(unittest.TestCase):
             frame_samples=30,
         )
         self.assertTrue(report["passed"])
+        self.assertEqual(report["evaluation_case"], "different_character")
         self.assertEqual(report["profile"]["schema_version"], "2.0.0")
         self.assertGreater(report["performance"]["retarget_fps_at_p95"], 60.0)
         self.assertFalse(report["scope"]["retarget_ground_truth_available"])
@@ -39,8 +40,36 @@ class QualityGateTests(unittest.TestCase):
             svg = svg_path.read_text(encoding="utf-8")
             ElementTree.parse(svg_path)
         self.assertTrue(restored["passed"])
-        self.assertIn("SKAC Codec Runtime Quality Gate", svg)
+        self.assertIn("SKAC Different character - compiled Profile playback Gate", svg)
         self.assertNotIn("<script", svg.casefold())
+
+    def test_same_character_gate_bypasses_profile_runtime(self) -> None:
+        source = source_clip()
+        report = run_quality_gate(
+            source,
+            source.skeleton,
+            settings=CodecSettings.preset("high"),
+            decode_iterations=2,
+            evaluation_case="same_character",
+        )
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["evaluation_case"], "same_character")
+        self.assertIsNone(report["target"])
+        self.assertIsNone(report["profile"])
+        self.assertIsNone(report["runtime_equivalence"])
+        self.assertIsNone(report["runtime_diagnostics"])
+        self.assertNotIn("retarget_frame_ms_p95", report["performance"])
+        check_ids = {item["id"] for item in report["checks"]}
+        self.assertNotIn("profile_core_coverage", check_ids)
+        self.assertNotIn("pipeline_realtime_factor", check_ids)
+
+    def test_same_character_gate_rejects_a_different_skeleton(self) -> None:
+        with self.assertRaisesRegex(ValueError, "identical source and target skeletons"):
+            run_quality_gate(
+                source_clip(),
+                target_skeleton(1.2, True),
+                evaluation_case="same_character",
+            )
 
 
 if __name__ == "__main__":

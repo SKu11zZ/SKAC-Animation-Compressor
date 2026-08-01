@@ -179,15 +179,30 @@ def _fbx_validate(args: argparse.Namespace) -> int:
 
 def _quality_gate(args: argparse.Namespace) -> int:
     source = read_bvh(args.source)
-    target_skeleton = read_bvh(args.target).skeleton
+    evaluation_case = args.evaluation_case
+    target_skeleton = (
+        source.skeleton
+        if evaluation_case == "same_character"
+        else read_bvh(args.target).skeleton
+    )
     settings = _settings(args)
     thresholds = QualityThresholds.for_settings(settings)
     thresholds = replace(
         thresholds,
-        minimum_core_coverage=args.minimum_core_coverage,
-        maximum_retarget_frame_ms_p95=args.maximum_retarget_frame_ms,
+        minimum_core_coverage=getattr(
+            args, "minimum_core_coverage", thresholds.minimum_core_coverage
+        ),
+        maximum_retarget_frame_ms_p95=getattr(
+            args,
+            "maximum_retarget_frame_ms",
+            thresholds.maximum_retarget_frame_ms_p95,
+        ),
         minimum_decode_realtime_factor=args.minimum_decode_realtime_factor,
-        minimum_pipeline_realtime_factor=args.minimum_pipeline_realtime_factor,
+        minimum_pipeline_realtime_factor=getattr(
+            args,
+            "minimum_pipeline_realtime_factor",
+            thresholds.minimum_pipeline_realtime_factor,
+        ),
     )
     report = run_quality_gate(
         source,
@@ -195,14 +210,16 @@ def _quality_gate(args: argparse.Namespace) -> int:
         settings=settings,
         thresholds=thresholds,
         decode_iterations=args.decode_iterations,
-        pipeline_iterations=args.pipeline_iterations,
-        frame_samples=args.frame_samples,
+        pipeline_iterations=getattr(args, "pipeline_iterations", 3),
+        frame_samples=getattr(args, "frame_samples", 300),
+        evaluation_case=evaluation_case,
     )
     write_quality_report_json(args.output, report)
     write_quality_report_svg(args.visual, report)
     _write_json(
         {
-            "command": "quality-gate",
+            "command": args.command,
+            "evaluation_case": report["evaluation_case"],
             "passed": report["passed"],
             "report": str(args.output),
             "visual": str(args.visual),
@@ -213,6 +230,33 @@ def _quality_gate(args: argparse.Namespace) -> int:
         }
     )
     return 0 if report["passed"] else 4
+
+
+def _add_quality_common_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--output", "-o", type=Path, required=True)
+    parser.add_argument("--visual", type=Path, required=True)
+    parser.add_argument(
+        "--quality", choices=("low", "medium", "high"), default="high"
+    )
+    parser.add_argument("--rotation-bits", type=int)
+    parser.add_argument("--translation-bits", type=int)
+    parser.add_argument("--rotation-error-degrees", type=float)
+    parser.add_argument("--translation-error-fraction", type=float)
+    parser.add_argument("--zlib-level", type=int)
+    parser.add_argument(
+        "--minimum-decode-realtime-factor", type=float, default=10.0
+    )
+    parser.add_argument("--decode-iterations", type=int, default=5)
+
+
+def _add_quality_different_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--minimum-core-coverage", type=float, default=1.0)
+    parser.add_argument("--maximum-retarget-frame-ms", type=float, default=4.0)
+    parser.add_argument(
+        "--minimum-pipeline-realtime-factor", type=float, default=5.0
+    )
+    parser.add_argument("--pipeline-iterations", type=int, default=3)
+    parser.add_argument("--frame-samples", type=int, default=300)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -288,34 +332,43 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--timeout", type=int, default=300)
     validate_parser.set_defaults(handler=_fbx_validate)
 
+    same_quality_parser = subparsers.add_parser(
+        "quality-gate-same",
+        help="gate direct Codec decode back to the source character",
+    )
+    same_quality_parser.add_argument(
+        "source", type=Path, help="public source BVH animation"
+    )
+    _add_quality_common_options(same_quality_parser)
+    same_quality_parser.set_defaults(
+        handler=_quality_gate, evaluation_case="same_character"
+    )
+
+    different_quality_parser = subparsers.add_parser(
+        "quality-gate-different",
+        help="gate Codec decode plus compiled playback on a different character",
+    )
+    different_quality_parser.add_argument(
+        "source", type=Path, help="public source BVH animation"
+    )
+    different_quality_parser.add_argument(
+        "target", type=Path, help="public target BVH template"
+    )
+    _add_quality_common_options(different_quality_parser)
+    _add_quality_different_options(different_quality_parser)
+    different_quality_parser.set_defaults(
+        handler=_quality_gate, evaluation_case="different_character"
+    )
+
     quality_parser = subparsers.add_parser(
         "quality-gate",
-        help="gate Codec reconstruction and compiled retarget playback quality/performance",
+        help="compatibility route: classify the case from skeleton signatures",
     )
     quality_parser.add_argument("source", type=Path, help="public source BVH animation")
     quality_parser.add_argument("target", type=Path, help="public target BVH template")
-    quality_parser.add_argument("--output", "-o", type=Path, required=True)
-    quality_parser.add_argument("--visual", type=Path, required=True)
-    quality_parser.add_argument(
-        "--quality", choices=("low", "medium", "high"), default="high"
-    )
-    quality_parser.add_argument("--rotation-bits", type=int)
-    quality_parser.add_argument("--translation-bits", type=int)
-    quality_parser.add_argument("--rotation-error-degrees", type=float)
-    quality_parser.add_argument("--translation-error-fraction", type=float)
-    quality_parser.add_argument("--zlib-level", type=int)
-    quality_parser.add_argument("--minimum-core-coverage", type=float, default=1.0)
-    quality_parser.add_argument("--maximum-retarget-frame-ms", type=float, default=4.0)
-    quality_parser.add_argument(
-        "--minimum-decode-realtime-factor", type=float, default=10.0
-    )
-    quality_parser.add_argument(
-        "--minimum-pipeline-realtime-factor", type=float, default=5.0
-    )
-    quality_parser.add_argument("--decode-iterations", type=int, default=5)
-    quality_parser.add_argument("--pipeline-iterations", type=int, default=3)
-    quality_parser.add_argument("--frame-samples", type=int, default=300)
-    quality_parser.set_defaults(handler=_quality_gate)
+    _add_quality_common_options(quality_parser)
+    _add_quality_different_options(quality_parser)
+    quality_parser.set_defaults(handler=_quality_gate, evaluation_case="auto")
     return parser
 
 

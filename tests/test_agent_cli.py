@@ -46,6 +46,14 @@ class AgentCliTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertEqual(report["protocol"], PROTOCOL)
         self.assertIn("encode", report["operations"])
+        self.assertIn("quality_gate_same", report["operations"])
+        self.assertIn("quality_gate_different", report["operations"])
+        self.assertNotIn(
+            "target", report["operations"]["quality_gate_same"]["optional"]
+        )
+        self.assertIn(
+            "target", report["operations"]["quality_gate_different"]["required"]
+        )
 
     def test_encode_inspect_decode_and_profile(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -162,18 +170,61 @@ class AgentCliTests(unittest.TestCase):
             self.assertTrue(responses[1]["ok"])
             self.assertTrue((workspace / "motion.skac").is_file())
 
-    def test_quality_gate_operation_always_writes_json_and_svg(self) -> None:
+    def test_same_character_quality_gate_has_its_own_operation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary).resolve()
             (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
             response, status = execute_request(
                 request(
                     "gate",
-                    "quality_gate",
+                    "quality_gate_same",
                     source="source.bvh",
-                    target="source.bvh",
                     report="reports/gate.json",
                     visual="reports/gate.svg",
+                    decode_iterations=1,
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(response["ok"])
+            self.assertTrue(response["result"]["passed"])
+            self.assertEqual(
+                response["result"]["evaluation_case"], "same_character"
+            )
+            self.assertTrue((workspace / "reports" / "gate.json").is_file())
+            self.assertTrue((workspace / "reports" / "gate.svg").is_file())
+
+    def test_same_character_operation_rejects_target_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            response, status = execute_request(
+                request(
+                    "gate",
+                    "quality_gate_same",
+                    source="source.bvh",
+                    target="source.bvh",
+                    report="gate.json",
+                    visual="gate.svg",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 2)
+            self.assertFalse(response["ok"])
+            self.assertIn("unknown fields: target", response["error"]["message"])
+
+    def test_different_character_quality_gate_requires_and_uses_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            response, status = execute_request(
+                request(
+                    "gate",
+                    "quality_gate_different",
+                    source="source.bvh",
+                    target="source.bvh",
+                    report="gate.json",
+                    visual="gate.svg",
                     minimum_core_coverage=0.0,
                     decode_iterations=1,
                     pipeline_iterations=1,
@@ -183,9 +234,9 @@ class AgentCliTests(unittest.TestCase):
             )
             self.assertEqual(status, 0)
             self.assertTrue(response["ok"])
-            self.assertTrue(response["result"]["passed"])
-            self.assertTrue((workspace / "reports" / "gate.json").is_file())
-            self.assertTrue((workspace / "reports" / "gate.svg").is_file())
+            self.assertEqual(
+                response["result"]["evaluation_case"], "different_character"
+            )
 
 
 if __name__ == "__main__":

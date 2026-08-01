@@ -50,7 +50,8 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
-python -m skac_codec quality-gate source.bvh target.bvh --output reports/gate.json --visual reports/gate.svg
+python -m skac_codec quality-gate-same source.bvh --output reports/same.json --visual reports/same.svg
+python -m skac_codec quality-gate-different source.bvh target.bvh --output reports/different.json --visual reports/different.svg
 skac-agent capabilities --pretty
 skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
@@ -99,14 +100,15 @@ distribution, end-effector IK, and robust contact locking remain later milestone
 experimental Blender FBX bridge is included, but it has not completed a real FBX round
 trip on this development machine; see `FBX.md` before using it.
 
-The `reports` directory contains six aggregate records:
+The `reports` directory contains seven aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - a one-file, two-target public retargeting smoke test;
 - an official SAN public-test reproduction;
 - a simple public rotation-copy pipeline trial;
 - a full SAN run using `skac_public_core`;
-- a Profile 2.0 Codec-runtime quality gate with a matching SVG summary.
+- a same-character Codec gate with a matching SVG summary;
+- a different-character Profile 2.0 playback gate with a matching SVG summary.
 
 The reports keep the scoring definitions beside the numbers. Raw motions and generated
 predictions are not included.
@@ -176,7 +178,8 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
-python -m skac_codec quality-gate source.bvh target.bvh --output reports/gate.json --visual reports/gate.svg
+python -m skac_codec quality-gate-same source.bvh --output reports/same.json --visual reports/same.svg
+python -m skac_codec quality-gate-different source.bvh target.bvh --output reports/different.json --visual reports/different.svg
 skac-agent capabilities --pretty
 skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
@@ -216,14 +219,15 @@ Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换�
 仓库已经包含实验性的 Blender FBX 适配层，但这台开发机还没有完成真实 FBX 往返验证；
 使用前请先看 `FBX.md`。
 
-`reports` 里目前有六份汇总记录：
+`reports` 里目前有七份汇总记录：
 
 - 一份使用公开 SAN BVH 的 Codec 1.0 往返测试；
 - 一份“单文件、双目标”的公开重定向测试；
 - SAN 官方公开测试复现；
 - 一个简单的公开旋转复制管线试验；
 - 使用 `skac_public_core` 跑完的 SAN 测试；
-- Profile 2.0 Codec 播放门槛，以及对应的 SVG 可视化摘要。
+- 一份同角色 Codec 门槛，以及对应的 SVG 可视化摘要；
+- 一份不同角色 Profile 2.0 播放门槛，以及对应的 SVG 可视化摘要。
 
 每份报告都会把数字和对应口径放在一起。原始动作和生成结果不会随仓库发布。
 

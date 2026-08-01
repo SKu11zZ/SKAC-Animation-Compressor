@@ -78,8 +78,14 @@ Protocol v1 operations:
 - `decode`: `.skac` to the source BVH skeleton, or to a target skeleton when both
   `target` and `profile` are supplied;
 - `profile`: freeze one source-to-target skeleton profile;
-- `quality_gate`: run the frozen quality/performance checks and always write JSON plus
-  a self-contained SVG report.
+- `quality_gate_same`: gate Codec reconstruction and direct source-character decode;
+  it accepts no target or Profile fields;
+- `quality_gate_different`: gate Codec decode plus frozen target-character playback;
+  it requires `target` and includes Profile coverage and runtime checks.
+
+`quality_gate` remains as a compatibility operation that classifies the case from the
+two skeleton signatures. New Agent integrations should use the two explicit operations.
+Every gate always writes JSON plus a self-contained SVG report.
 
 The exact required and optional fields are returned by `capabilities`. Unknown fields
 are rejected so a misspelled option cannot silently change a run.
@@ -116,9 +122,13 @@ skac-agent run --workspace ./job --request ./encode-request.json --pretty
 
 - `protocol`：目前是 `skac.agent.v1`；
 - `request_id`：调用方自己的任务 ID，响应会原样带回；
-- `operation`：`encode`、`inspect`、`decode`、`profile` 或 `quality_gate`；后者会
-  同时生成 JSON 和 SVG 门槛报告；
+- `operation`：`encode`、`inspect`、`decode`、`profile`、`quality_gate_same` 或
+  `quality_gate_different`；两套门槛都会同时生成 JSON 和 SVG；
 - `arguments`：该操作需要的路径和选项。
+
+`quality_gate_same` 只接受源动画，不允许传目标骨架或 Profile 字段；
+`quality_gate_different` 必须传目标骨架，并会检查 Profile 覆盖和运行时。旧的
+`quality_gate` 只留作兼容，会按两份骨架签名自动分类。新的 Agent 接入直接用两个明确操作。
 
 退出码 `0` 表示成功，`2` 表示请求本身不合法，`3` 表示请求合法但执行失败。
 错误响应不会往标准输出里混入 Python traceback，Agent 可以直接按 JSON 解析。
