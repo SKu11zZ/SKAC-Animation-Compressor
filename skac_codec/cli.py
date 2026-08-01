@@ -22,6 +22,7 @@ from .retarget import (
     retarget_motion,
     save_retarget_profile,
 )
+from .runtime import save_runtime_skeleton
 
 
 def _settings(args: argparse.Namespace) -> CodecSettings:
@@ -136,6 +137,19 @@ def _profile(args: argparse.Namespace) -> int:
             "root_translation_scale": profile.root_translation_scale,
             "contact_lock": profile.contact_lock,
             "foot_pair_count": len(profile.foot_pairs),
+        }
+    )
+    return 0
+
+
+def _runtime_skeleton(args: argparse.Namespace) -> int:
+    skeleton = read_bvh(args.target).skeleton
+    save_runtime_skeleton(args.output, skeleton)
+    _write_json(
+        {
+            "command": "runtime-skeleton",
+            "joint_count": skeleton.joint_count,
+            "skeleton_sha256": skeleton.signature(),
         }
     )
     return 0
@@ -302,6 +316,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="legacy option; rejected by real-time Profile 2.0",
     )
     profile_parser.set_defaults(handler=_profile)
+
+    runtime_skeleton_parser = subparsers.add_parser(
+        "runtime-skeleton", help="export a target skeleton for the native runtime"
+    )
+    runtime_skeleton_parser.add_argument("target", type=Path, help="target BVH template")
+    runtime_skeleton_parser.add_argument("--output", "-o", type=Path, required=True)
+    runtime_skeleton_parser.set_defaults(handler=_runtime_skeleton)
 
     extract_parser = subparsers.add_parser(
         "fbx-extract", help="extract an FBX armature animation to BVH through Blender"

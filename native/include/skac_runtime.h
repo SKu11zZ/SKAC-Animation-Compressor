@@ -21,6 +21,7 @@ extern "C" {
 #define SKAC_RUNTIME_ABI_VERSION 1u
 
 typedef struct skac_decoder skac_decoder;
+typedef struct skac_retargeter skac_retargeter;
 
 typedef enum skac_result {
     SKAC_OK = 0,
@@ -45,6 +46,13 @@ typedef struct skac_clip_info {
     double frame_time_seconds;
     double duration_seconds;
 } skac_clip_info;
+
+typedef struct skac_retarget_info {
+    uint32_t abi_version;
+    uint32_t target_joint_count;
+    uint32_t mapped_joint_count;
+    double root_translation_scale;
+} skac_retarget_info;
 
 /* Engine-ready layout: quaternion xyzw followed by translation xyz. */
 typedef struct skac_transform {
@@ -117,6 +125,12 @@ SKAC_RUNTIME_API skac_result skac_decoder_get_joint_name(
     const char** out_utf8_name
 );
 
+SKAC_RUNTIME_API skac_result skac_decoder_get_joint_offset(
+    const skac_decoder* decoder,
+    uint32_t joint_index,
+    float out_xyz[3]
+);
+
 SKAC_RUNTIME_API skac_result skac_decoder_sample_frame(
     const skac_decoder* decoder,
     uint32_t frame_index,
@@ -126,6 +140,55 @@ SKAC_RUNTIME_API skac_result skac_decoder_sample_frame(
 
 SKAC_RUNTIME_API skac_result skac_decoder_sample_time(
     const skac_decoder* decoder,
+    double time_seconds,
+    skac_time_mode mode,
+    skac_transform* out_transforms,
+    size_t transform_capacity
+);
+
+/*
+ * Compile a frozen Profile 2.0 plan for one playback instance. The target skeleton
+ * document uses schema skac.runtime_skeleton 1.0. The decoder must remain alive until
+ * the retargeter is closed. A retargeter owns reusable scratch buffers and must not be
+ * sampled concurrently; separate instances may share one immutable decoder.
+ */
+SKAC_RUNTIME_API skac_result skac_retargeter_create(
+    const skac_decoder* decoder,
+    const char* profile_json,
+    size_t profile_size,
+    const char* target_skeleton_json,
+    size_t target_skeleton_size,
+    skac_retargeter** out_retargeter
+);
+
+SKAC_RUNTIME_API void skac_retargeter_close(skac_retargeter* retargeter);
+
+SKAC_RUNTIME_API skac_result skac_retargeter_get_info(
+    const skac_retargeter* retargeter,
+    skac_retarget_info* out_info
+);
+
+SKAC_RUNTIME_API skac_result skac_retargeter_get_joint_parent(
+    const skac_retargeter* retargeter,
+    uint32_t joint_index,
+    int32_t* out_parent_index
+);
+
+SKAC_RUNTIME_API skac_result skac_retargeter_get_joint_name(
+    const skac_retargeter* retargeter,
+    uint32_t joint_index,
+    const char** out_utf8_name
+);
+
+SKAC_RUNTIME_API skac_result skac_retargeter_sample_frame(
+    skac_retargeter* retargeter,
+    uint32_t frame_index,
+    skac_transform* out_transforms,
+    size_t transform_capacity
+);
+
+SKAC_RUNTIME_API skac_result skac_retargeter_sample_time(
+    skac_retargeter* retargeter,
     double time_seconds,
     skac_time_mode mode,
     skac_transform* out_transforms,

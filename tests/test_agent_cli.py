@@ -48,6 +48,7 @@ class AgentCliTests(unittest.TestCase):
         self.assertIn("encode", report["operations"])
         self.assertIn("quality_gate_same", report["operations"])
         self.assertIn("quality_gate_different", report["operations"])
+        self.assertIn("runtime_skeleton", report["operations"])
         self.assertNotIn(
             "target", report["operations"]["quality_gate_same"]["optional"]
         )
@@ -95,6 +96,19 @@ class AgentCliTests(unittest.TestCase):
             )
             self.assertEqual(status, 0)
             self.assertEqual(profiled["result"]["mapped_joint_count"], 1)
+
+            runtime_target, status = execute_request(
+                request(
+                    "r1",
+                    "runtime_skeleton",
+                    target="motions/source.bvh",
+                    output="profiles/target.runtime.json",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(runtime_target["result"]["joint_count"], 1)
+            self.assertTrue((workspace / "profiles" / "target.runtime.json").is_file())
 
             decoded, status = execute_request(
                 request(

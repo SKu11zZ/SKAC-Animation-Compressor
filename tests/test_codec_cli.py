@@ -38,6 +38,7 @@ class CodecCliTests(unittest.TestCase):
             encoded = root / "motion.skac"
             restored = root / "restored.bvh"
             profile = root / "target.profile.json"
+            runtime_target = root / "target.runtime.json"
             retargeted = root / "retargeted.bvh"
             source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
 
@@ -74,6 +75,21 @@ class CodecCliTests(unittest.TestCase):
                     ),
                     0,
                 )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "runtime-skeleton",
+                            str(source),
+                            "-o",
+                            str(runtime_target),
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(output.getvalue())["joint_count"], 1)
+            self.assertTrue(runtime_target.is_file())
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 self.assertEqual(

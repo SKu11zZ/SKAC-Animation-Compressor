@@ -319,6 +319,13 @@ SKAC_STANDARD::string string_value(const Json& value, const char* label) {
     return value.string;
 }
 
+bool boolean_value(const Json& value, const char* label) {
+    if (value.type != Json::Type::Boolean) {
+        fail(SKAC_INVALID_FORMAT, SKAC_STANDARD::string(label) + " is not a boolean");
+    }
+    return value.boolean;
+}
+
 double number_value(const Json& value, const char* label) {
     if (value.type != Json::Type::Number || !SKAC_STANDARD::isfinite(value.number)) {
         fail(SKAC_INVALID_FORMAT, SKAC_STANDARD::string(label) + " is not a finite number");
@@ -398,6 +405,19 @@ Quaternion normalize(Quaternion value) {
     value.y /= length;
     value.z /= length;
     return value;
+}
+
+Quaternion multiply(const Quaternion& left, const Quaternion& right) {
+    return {
+        left.w * right.w - left.x * right.x - left.y * right.y - left.z * right.z,
+        left.w * right.x + left.x * right.w + left.y * right.z - left.z * right.y,
+        left.w * right.y - left.x * right.z + left.y * right.w + left.z * right.x,
+        left.w * right.z + left.x * right.y - left.y * right.x + left.z * right.w,
+    };
+}
+
+Quaternion conjugate(const Quaternion& value) {
+    return {value.w, -value.x, -value.y, -value.z};
 }
 
 Quaternion slerp(Quaternion left, Quaternion right, double amount) {
@@ -555,6 +575,7 @@ struct skac_decoder_impl {
     uint32_t frame_count = 0;
     uint32_t joint_count = 0;
     double frame_time = 0.0;
+    SKAC_STANDARD::string skeleton_sha256;
     SkeletonData skeleton;
     SKAC_STANDARD::vector<Quaternion> rotations;
     SKAC_STANDARD::vector<SKAC_STANDARD::array<double, 3>> translations;
@@ -659,6 +680,10 @@ SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
         fail(SKAC_INVALID_FORMAT, "animation timing is invalid");
     }
     decoder->skeleton = parse_skeleton(member(root, "skeleton"));
+    decoder->skeleton_sha256 = string_value(member(root, "skeleton_sha256"), "skeleton_sha256");
+    if (decoder->skeleton_sha256.size() != 64) {
+        fail(SKAC_INVALID_FORMAT, "skeleton SHA-256 declaration has the wrong length");
+    }
     if (decoder->skeleton.names.size() > SKAC_STANDARD::numeric_limits<uint32_t>::max()) {
         fail(SKAC_INVALID_FORMAT, "joint count exceeds uint32");
     }
@@ -779,6 +804,301 @@ void write_transform(const Quaternion& rotation, const SKAC_STANDARD::array<doub
     output.translation_z = static_cast<float>(translation[2]);
 }
 
+struct skac_retargeter_impl {
+    const skac_decoder_impl* decoder = nullptr;
+    SkeletonData target;
+    uint32_t mapped_joint_count = 0;
+    double root_translation_scale = 1.0;
+    SKAC_STANDARD::vector<uint32_t> source_evaluation_order;
+    SKAC_STANDARD::vector<uint32_t> target_evaluation_order;
+    SKAC_STANDARD::vector<uint32_t> source_indices;
+    SKAC_STANDARD::vector<int32_t> transfer_by_target;
+    SKAC_STANDARD::vector<Quaternion> basis_quaternions;
+    SKAC_STANDARD::vector<Quaternion> basis_conjugates;
+    SKAC_STANDARD::vector<Quaternion> source_local;
+    SKAC_STANDARD::vector<Quaternion> source_global;
+    SKAC_STANDARD::vector<Quaternion> target_local;
+    SKAC_STANDARD::vector<Quaternion> target_global;
+    SKAC_STANDARD::vector<SKAC_STANDARD::array<double, 3>> target_translations;
+    SKAC_STANDARD::array<double, 3> source_root_translation{};
+};
+
+void validate_evaluation_order(
+    const SKAC_STANDARD::vector<uint32_t>& order,
+    const SKAC_STANDARD::vector<int32_t>& parents,
+    const char* label
+) {
+    SKAC_STANDARD::vector<bool> seen(parents.size(), false);
+    for (uint32_t joint : order) {
+        if (joint >= parents.size() || seen[joint]) {
+            fail(SKAC_INVALID_FORMAT, SKAC_STANDARD::string(label) + " contains an invalid or repeated joint");
+        }
+        const int32_t parent = parents[joint];
+        if (parent >= 0 && !seen[static_cast<size_t>(parent)]) {
+            fail(SKAC_INVALID_FORMAT, SKAC_STANDARD::string(label) + " is not parent-first");
+        }
+        seen[joint] = true;
+    }
+}
+
+SKAC_STANDARD::unique_ptr<skac_retargeter_impl> compile_retargeter(
+    const skac_decoder_impl& decoder,
+    const char* profile_json,
+    size_t profile_size,
+    const char* target_json,
+    size_t target_size
+) {
+    if (profile_json == nullptr || target_json == nullptr || profile_size == 0 || target_size == 0 ||
+        profile_size > kMaxMetadataBytes || target_size > kMaxMetadataBytes) {
+        fail(SKAC_INVALID_ARGUMENT, "retarget profile or target skeleton input is invalid");
+    }
+
+    const Json profile = JsonParser(profile_json, profile_size).parse();
+    if (string_value(member(profile, "schema"), "profile.schema") != "skac.retarget_profile" ||
+        string_value(member(profile, "schema_version"), "profile.schema_version") != "2.0.0") {
+        fail(SKAC_UNSUPPORTED, "native retargeting requires Profile 2.0");
+    }
+    if (string_value(member(profile, "configuration_scope"), "profile.configuration_scope") !=
+            "source_target_skeleton_pair" ||
+        boolean_value(member(profile, "per_animation_adjustment"), "profile.per_animation_adjustment")) {
+        fail(SKAC_INVALID_FORMAT, "retarget profile is not a frozen skeleton-pair configuration");
+    }
+    if (boolean_value(member(profile, "contact_lock"), "profile.contact_lock")) {
+        fail(SKAC_UNSUPPORTED, "contact correction is not supported by the native real-time plan");
+    }
+
+    const Json target_document = JsonParser(target_json, target_size).parse();
+    if (string_value(member(target_document, "schema"), "target.schema") != "skac.runtime_skeleton" ||
+        string_value(member(target_document, "schema_version"), "target.schema_version") != "1.0.0") {
+        fail(SKAC_UNSUPPORTED, "unsupported runtime target skeleton schema");
+    }
+    auto result = SKAC_STANDARD::make_unique<skac_retargeter_impl>();
+    result->decoder = &decoder;
+    result->target = parse_skeleton(member(target_document, "skeleton"));
+    if (result->target.names.size() > SKAC_STANDARD::numeric_limits<uint32_t>::max()) {
+        fail(SKAC_INVALID_FORMAT, "target joint count exceeds uint32");
+    }
+
+    const SKAC_STANDARD::string source_hash = string_value(
+        member(profile, "source_skeleton_sha256"), "profile.source_skeleton_sha256"
+    );
+    const SKAC_STANDARD::string target_hash = string_value(
+        member(profile, "target_skeleton_sha256"), "profile.target_skeleton_sha256"
+    );
+    const SKAC_STANDARD::string profile_hash = string_value(
+        member(profile, "profile_sha256"), "profile.profile_sha256"
+    );
+    const SKAC_STANDARD::string declared_target_hash = string_value(
+        member(target_document, "skeleton_sha256"), "target.skeleton_sha256"
+    );
+    if (source_hash != decoder.skeleton_sha256) {
+        fail(SKAC_INVALID_FORMAT, "source skeleton does not match the frozen profile");
+    }
+    if (target_hash != declared_target_hash || target_hash.size() != 64 || profile_hash.size() != 64) {
+        fail(SKAC_INVALID_FORMAT, "target skeleton does not match the frozen profile");
+    }
+
+    result->root_translation_scale = number_value(
+        member(profile, "root_translation_scale"), "profile.root_translation_scale"
+    );
+    if (!(result->root_translation_scale > 0.0)) {
+        fail(SKAC_INVALID_FORMAT, "profile root translation scale must be positive");
+    }
+    const auto& root_channels = result->target.channels.front();
+    for (const char* channel : {"Xposition", "Yposition", "Zposition"}) {
+        if (SKAC_STANDARD::find(root_channels.begin(), root_channels.end(), channel) == root_channels.end()) {
+            fail(SKAC_INVALID_FORMAT, "runtime target root requires X/Y/Z position channels");
+        }
+    }
+
+    const Json& runtime = member(profile, "runtime_plan");
+    if (string_value(member(runtime, "mode"), "runtime.mode") != "compiled_quaternion_frame_v2") {
+        fail(SKAC_UNSUPPORTED, "unsupported retarget runtime plan mode");
+    }
+    result->source_indices = u32_array(member(runtime, "source_joint_indices"), "source_joint_indices");
+    const SKAC_STANDARD::vector<uint32_t> target_indices = u32_array(
+        member(runtime, "target_joint_indices"), "target_joint_indices"
+    );
+    result->source_evaluation_order = u32_array(
+        member(runtime, "source_evaluation_order"), "source_evaluation_order"
+    );
+    result->target_evaluation_order = u32_array(
+        member(runtime, "target_evaluation_order"), "target_evaluation_order"
+    );
+    SKAC_STANDARD::vector<int32_t> target_parents;
+    for (const Json& item : array_value(member(runtime, "target_parent_indices"), "target_parent_indices")) {
+        const int64_t value = integer_value(item, "target parent");
+        if (value < SKAC_STANDARD::numeric_limits<int32_t>::min() ||
+            value > SKAC_STANDARD::numeric_limits<int32_t>::max()) {
+            fail(SKAC_INVALID_FORMAT, "target parent is outside int32");
+        }
+        target_parents.push_back(static_cast<int32_t>(value));
+    }
+    if (target_parents != result->target.parents) {
+        fail(SKAC_INVALID_FORMAT, "profile target parent table does not match the target skeleton");
+    }
+
+    for (const Json& item : array_value(member(runtime, "basis_quaternions"), "basis_quaternions")) {
+        const auto& values = array_value(item, "basis quaternion");
+        if (values.size() != 4) fail(SKAC_INVALID_FORMAT, "basis quaternion must contain four values");
+        const Quaternion basis = normalize({
+            number_value(values[0], "basis w"),
+            number_value(values[1], "basis x"),
+            number_value(values[2], "basis y"),
+            number_value(values[3], "basis z"),
+        });
+        result->basis_quaternions.push_back(basis);
+        result->basis_conjugates.push_back(conjugate(basis));
+    }
+
+    const size_t transfer_count = result->source_indices.size();
+    if (transfer_count == 0 || target_indices.size() != transfer_count ||
+        result->basis_quaternions.size() != transfer_count ||
+        transfer_count > static_cast<size_t>(SKAC_STANDARD::numeric_limits<int32_t>::max())) {
+        fail(SKAC_INVALID_FORMAT, "retarget runtime transfer arrays have different lengths");
+    }
+    const auto& transfers = array_value(member(profile, "transfers"), "profile.transfers");
+    if (transfers.size() != transfer_count) {
+        fail(SKAC_INVALID_FORMAT, "profile transfers do not match its runtime plan");
+    }
+    result->transfer_by_target.assign(result->target.names.size(), -1);
+    for (size_t slot = 0; slot < transfer_count; ++slot) {
+        const uint32_t source_joint = result->source_indices[slot];
+        const uint32_t target_joint = target_indices[slot];
+        if (source_joint >= decoder.joint_count || target_joint >= result->target.names.size() ||
+            result->transfer_by_target[target_joint] >= 0) {
+            fail(SKAC_INVALID_FORMAT, "retarget transfer index is invalid or repeated");
+        }
+        const Json& transfer = transfers[slot];
+        if (u32_value(member(transfer, "source_joint"), "transfer.source_joint") != source_joint ||
+            u32_value(member(transfer, "target_joint"), "transfer.target_joint") != target_joint ||
+            string_value(member(transfer, "source_name"), "transfer.source_name") != decoder.skeleton.names[source_joint] ||
+            string_value(member(transfer, "target_name"), "transfer.target_name") != result->target.names[target_joint]) {
+            fail(SKAC_INVALID_FORMAT, "profile transfer identity does not match its skeletons");
+        }
+        const auto& transfer_basis = array_value(
+            member(transfer, "basis_quaternion"), "transfer.basis_quaternion"
+        );
+        if (transfer_basis.size() != 4) {
+            fail(SKAC_INVALID_FORMAT, "transfer basis quaternion must contain four values");
+        }
+        const Quaternion& runtime_basis = result->basis_quaternions[slot];
+        const double expected[4] = {
+            runtime_basis.w, runtime_basis.x, runtime_basis.y, runtime_basis.z
+        };
+        for (size_t component = 0; component < 4; ++component) {
+            if (SKAC_STANDARD::abs(
+                    number_value(transfer_basis[component], "transfer basis component") - expected[component]
+                ) > 1e-10) {
+                fail(SKAC_INVALID_FORMAT, "profile transfer basis does not match its runtime plan");
+            }
+        }
+        result->transfer_by_target[target_joint] = static_cast<int32_t>(slot);
+    }
+    validate_evaluation_order(
+        result->source_evaluation_order, decoder.skeleton.parents, "source evaluation order"
+    );
+    validate_evaluation_order(
+        result->target_evaluation_order, result->target.parents, "target evaluation order"
+    );
+    for (uint32_t source_joint : result->source_indices) {
+        if (SKAC_STANDARD::find(result->source_evaluation_order.begin(), result->source_evaluation_order.end(), source_joint) ==
+            result->source_evaluation_order.end()) {
+            fail(SKAC_INVALID_FORMAT, "source evaluation order omits a mapped joint");
+        }
+    }
+    for (uint32_t target_joint : target_indices) {
+        if (SKAC_STANDARD::find(result->target_evaluation_order.begin(), result->target_evaluation_order.end(), target_joint) ==
+            result->target_evaluation_order.end()) {
+            fail(SKAC_INVALID_FORMAT, "target evaluation order omits a mapped joint");
+        }
+    }
+
+    result->mapped_joint_count = static_cast<uint32_t>(transfer_count);
+    result->source_local.resize(decoder.joint_count);
+    result->source_global.resize(decoder.joint_count);
+    result->target_local.resize(result->target.names.size());
+    result->target_global.resize(result->target.names.size());
+    result->target_translations.resize(result->target.names.size());
+    return result;
+}
+
+void load_source_frame(skac_retargeter_impl& runtime, uint32_t frame) {
+    for (uint32_t joint = 0; joint < runtime.decoder->joint_count; ++joint) {
+        runtime.source_local[joint] = runtime.decoder->rotations[pose_index(*runtime.decoder, frame, joint)];
+    }
+    runtime.source_root_translation = runtime.decoder->translations[
+        pose_index(*runtime.decoder, frame, 0)
+    ];
+}
+
+void load_source_time(skac_retargeter_impl& runtime, double time_seconds, skac_time_mode mode) {
+    const double duration = (runtime.decoder->frame_count - 1) * runtime.decoder->frame_time;
+    double sampled_time = time_seconds;
+    if (mode == SKAC_TIME_LOOP && duration > 0.0) {
+        sampled_time = SKAC_STANDARD::fmod(sampled_time, duration);
+        if (sampled_time < 0.0) sampled_time += duration;
+    } else {
+        sampled_time = SKAC_STANDARD::max(0.0, SKAC_STANDARD::min(duration, sampled_time));
+    }
+    const double frame_position = sampled_time / runtime.decoder->frame_time;
+    const uint32_t first = SKAC_STANDARD::min(
+        static_cast<uint32_t>(SKAC_STANDARD::floor(frame_position)), runtime.decoder->frame_count - 1
+    );
+    const uint32_t second = SKAC_STANDARD::min(first + 1, runtime.decoder->frame_count - 1);
+    const double amount = SKAC_STANDARD::max(0.0, SKAC_STANDARD::min(1.0, frame_position - first));
+    for (uint32_t joint = 0; joint < runtime.decoder->joint_count; ++joint) {
+        runtime.source_local[joint] = slerp(
+            runtime.decoder->rotations[pose_index(*runtime.decoder, first, joint)],
+            runtime.decoder->rotations[pose_index(*runtime.decoder, second, joint)],
+            amount
+        );
+    }
+    for (size_t axis = 0; axis < 3; ++axis) {
+        const double left = runtime.decoder->translations[pose_index(*runtime.decoder, first, 0)][axis];
+        const double right = runtime.decoder->translations[pose_index(*runtime.decoder, second, 0)][axis];
+        runtime.source_root_translation[axis] = left + amount * (right - left);
+    }
+}
+
+void evaluate_retarget(skac_retargeter_impl& runtime, skac_transform* output) {
+    for (uint32_t joint : runtime.source_evaluation_order) {
+        const int32_t parent = runtime.decoder->skeleton.parents[joint];
+        runtime.source_global[joint] = parent < 0
+            ? runtime.source_local[joint]
+            : multiply(runtime.source_global[static_cast<size_t>(parent)], runtime.source_local[joint]);
+    }
+    for (size_t joint = 0; joint < runtime.target.names.size(); ++joint) {
+        runtime.target_local[joint] = Quaternion{};
+        runtime.target_translations[joint] = runtime.target.offsets[joint];
+    }
+    for (uint32_t target_joint : runtime.target_evaluation_order) {
+        const int32_t parent = runtime.target.parents[target_joint];
+        const int32_t slot = runtime.transfer_by_target[target_joint];
+        if (slot >= 0) {
+            const uint32_t source_joint = runtime.source_indices[static_cast<size_t>(slot)];
+            const Quaternion desired = multiply(
+                multiply(runtime.basis_quaternions[static_cast<size_t>(slot)], runtime.source_global[source_joint]),
+                runtime.basis_conjugates[static_cast<size_t>(slot)]
+            );
+            runtime.target_local[target_joint] = parent < 0
+                ? desired
+                : multiply(conjugate(runtime.target_global[static_cast<size_t>(parent)]), desired);
+        }
+        runtime.target_global[target_joint] = parent < 0
+            ? runtime.target_local[target_joint]
+            : multiply(runtime.target_global[static_cast<size_t>(parent)], runtime.target_local[target_joint]);
+    }
+    for (size_t axis = 0; axis < 3; ++axis) {
+        runtime.target_translations[0][axis] += (
+            runtime.source_root_translation[axis] - runtime.decoder->skeleton.offsets[0][axis]
+        ) * runtime.root_translation_scale;
+    }
+    for (size_t joint = 0; joint < runtime.target.names.size(); ++joint) {
+        write_transform(runtime.target_local[joint], runtime.target_translations[joint], output[joint]);
+    }
+}
+
 template <typename Function>
 skac_result guarded(Function&& function) noexcept {
     try {
@@ -804,6 +1124,10 @@ skac_result guarded(Function&& function) noexcept {
 
 struct skac_decoder {
     SKAC_STANDARD::unique_ptr<skac_decoder_impl> value;
+};
+
+struct skac_retargeter {
+    SKAC_STANDARD::unique_ptr<skac_retargeter_impl> value;
 };
 
 extern "C" {
@@ -939,6 +1263,24 @@ skac_result skac_decoder_get_joint_name(const skac_decoder* decoder, uint32_t jo
     });
 }
 
+skac_result skac_decoder_get_joint_offset(
+    const skac_decoder* decoder,
+    uint32_t joint_index,
+    float out_xyz[3]
+) {
+    return guarded([&]() {
+        if (decoder == nullptr || decoder->value == nullptr || out_xyz == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "decoder or offset output is null");
+        }
+        if (joint_index >= decoder->value->joint_count) {
+            fail(SKAC_INVALID_ARGUMENT, "joint index is outside range");
+        }
+        for (size_t axis = 0; axis < 3; ++axis) {
+            out_xyz[axis] = static_cast<float>(decoder->value->skeleton.offsets[joint_index][axis]);
+        }
+    });
+}
+
 skac_result skac_decoder_sample_frame(
     const skac_decoder* decoder,
     uint32_t frame_index,
@@ -998,6 +1340,126 @@ skac_result skac_decoder_sample_time(
             }
             write_transform(rotation, translation, out_transforms[joint]);
         }
+    });
+}
+
+skac_result skac_retargeter_create(
+    const skac_decoder* decoder,
+    const char* profile_json,
+    size_t profile_size,
+    const char* target_skeleton_json,
+    size_t target_skeleton_size,
+    skac_retargeter** out_retargeter
+) {
+    return guarded([&]() {
+        if (decoder == nullptr || decoder->value == nullptr || out_retargeter == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "decoder or retargeter output is null");
+        }
+        *out_retargeter = nullptr;
+        auto result = SKAC_STANDARD::make_unique<skac_retargeter>();
+        result->value = compile_retargeter(
+            *decoder->value,
+            profile_json,
+            profile_size,
+            target_skeleton_json,
+            target_skeleton_size
+        );
+        *out_retargeter = result.release();
+    });
+}
+
+void skac_retargeter_close(skac_retargeter* retargeter) {
+    delete retargeter;
+}
+
+skac_result skac_retargeter_get_info(
+    const skac_retargeter* retargeter,
+    skac_retarget_info* out_info
+) {
+    return guarded([&]() {
+        if (retargeter == nullptr || retargeter->value == nullptr || out_info == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "retargeter or info output is null");
+        }
+        out_info->abi_version = SKAC_RUNTIME_ABI_VERSION;
+        out_info->target_joint_count = static_cast<uint32_t>(retargeter->value->target.names.size());
+        out_info->mapped_joint_count = retargeter->value->mapped_joint_count;
+        out_info->root_translation_scale = retargeter->value->root_translation_scale;
+    });
+}
+
+skac_result skac_retargeter_get_joint_parent(
+    const skac_retargeter* retargeter,
+    uint32_t joint_index,
+    int32_t* out_parent_index
+) {
+    return guarded([&]() {
+        if (retargeter == nullptr || retargeter->value == nullptr || out_parent_index == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "retargeter or parent output is null");
+        }
+        if (joint_index >= retargeter->value->target.names.size()) {
+            fail(SKAC_INVALID_ARGUMENT, "target joint index is outside range");
+        }
+        *out_parent_index = retargeter->value->target.parents[joint_index];
+    });
+}
+
+skac_result skac_retargeter_get_joint_name(
+    const skac_retargeter* retargeter,
+    uint32_t joint_index,
+    const char** out_utf8_name
+) {
+    return guarded([&]() {
+        if (retargeter == nullptr || retargeter->value == nullptr || out_utf8_name == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "retargeter or name output is null");
+        }
+        if (joint_index >= retargeter->value->target.names.size()) {
+            fail(SKAC_INVALID_ARGUMENT, "target joint index is outside range");
+        }
+        *out_utf8_name = retargeter->value->target.names[joint_index].c_str();
+    });
+}
+
+skac_result skac_retargeter_sample_frame(
+    skac_retargeter* retargeter,
+    uint32_t frame_index,
+    skac_transform* out_transforms,
+    size_t transform_capacity
+) {
+    return guarded([&]() {
+        if (retargeter == nullptr || retargeter->value == nullptr || out_transforms == nullptr) {
+            fail(SKAC_INVALID_ARGUMENT, "retargeter or transform output is null");
+        }
+        if (frame_index >= retargeter->value->decoder->frame_count) {
+            fail(SKAC_INVALID_ARGUMENT, "frame index is outside range");
+        }
+        if (transform_capacity < retargeter->value->target.names.size()) {
+            fail(SKAC_BUFFER_TOO_SMALL, "transform buffer is smaller than target joint count");
+        }
+        load_source_frame(*retargeter->value, frame_index);
+        evaluate_retarget(*retargeter->value, out_transforms);
+    });
+}
+
+skac_result skac_retargeter_sample_time(
+    skac_retargeter* retargeter,
+    double time_seconds,
+    skac_time_mode mode,
+    skac_transform* out_transforms,
+    size_t transform_capacity
+) {
+    return guarded([&]() {
+        if (retargeter == nullptr || retargeter->value == nullptr || out_transforms == nullptr ||
+            !SKAC_STANDARD::isfinite(time_seconds)) {
+            fail(SKAC_INVALID_ARGUMENT, "retarget time sampling argument is invalid");
+        }
+        if (mode != SKAC_TIME_CLAMP && mode != SKAC_TIME_LOOP) {
+            fail(SKAC_INVALID_ARGUMENT, "time mode is invalid");
+        }
+        if (transform_capacity < retargeter->value->target.names.size()) {
+            fail(SKAC_BUFFER_TOO_SMALL, "transform buffer is smaller than target joint count");
+        }
+        load_source_time(*retargeter->value, time_seconds, mode);
+        evaluate_retarget(*retargeter->value, out_transforms);
     });
 }
 

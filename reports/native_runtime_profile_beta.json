@@ -1,0 +1,93 @@
+{
+  "checks": [
+    {
+      "id": "same_character_sample_p95",
+      "maximum_ms": 0.1,
+      "passed": true,
+      "value_ms": 0.0014
+    },
+    {
+      "id": "different_character_sample_p95",
+      "maximum_ms": 0.25,
+      "passed": true,
+      "value_ms": 0.0038
+    },
+    {
+      "id": "different_character_100_instances_tick_p95",
+      "maximum_ms": 16.667,
+      "passed": true,
+      "value_ms": 0.530725
+    }
+  ],
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 158 Stepping 10, GenuineIntel",
+    "python": "3.12.13"
+  },
+  "fixture": {
+    "frame_count": 300,
+    "mapped_joint_count": 65,
+    "source_joint_count": 65,
+    "target_joint_count": 67
+  },
+  "generated_at_utc": "2026-08-01T17:11:28.814290+00:00",
+  "method": {
+    "build_type": "Release",
+    "different_character_warmup_ticks": 100,
+    "file_io_included": false,
+    "fixture_origin": "deterministically_generated_public_safe",
+    "iterations": 2000,
+    "same_character_warmup_ticks": 200,
+    "sampling": "time_interpolated_loop"
+  },
+  "notes": [
+    "Measurements are machine-dependent and are not cross-machine rankings.",
+    "The same-character API and format-1.0 container remain unchanged.",
+    "Each retarget playback instance owns reusable scratch buffers; sampling performs no explicit allocation."
+  ],
+  "passed": true,
+  "results": [
+    {
+      "instances": 1,
+      "mode": "same_character",
+      "sample_ms_p50": 0.0013,
+      "sample_ms_p95": 0.0014,
+      "sample_ms_p99": 0.0014,
+      "tick_ms_p95": 0.0014
+    },
+    {
+      "instances": 1,
+      "mode": "different_character",
+      "sample_ms_p50": 0.0033,
+      "sample_ms_p95": 0.0038,
+      "sample_ms_p99": 0.0167,
+      "tick_ms_p95": 0.0038
+    },
+    {
+      "instances": 10,
+      "mode": "different_character",
+      "sample_ms_p50": 0.00349,
+      "sample_ms_p95": 0.00384,
+      "sample_ms_p99": 0.0047301,
+      "tick_ms_p95": 0.0384
+    },
+    {
+      "instances": 50,
+      "mode": "different_character",
+      "sample_ms_p50": 0.003474,
+      "sample_ms_p95": 0.0043242,
+      "sample_ms_p99": 0.00579602,
+      "tick_ms_p95": 0.21621
+    },
+    {
+      "instances": 100,
+      "mode": "different_character",
+      "sample_ms_p50": 0.003532,
+      "sample_ms_p95": 0.00530725,
+      "sample_ms_p99": 0.00616606,
+      "tick_ms_p95": 0.530725
+    }
+  ],
+  "schema": "skac.native_runtime_benchmark",
+  "schema_version": "1.0.0"
+}

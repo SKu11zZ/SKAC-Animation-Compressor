@@ -6,10 +6,9 @@
 
 ## English
 
-The Runtime Beta is the first engine-facing path for playing a complete `.skac` file
-without starting Python. It consists of a C++17 decoder with a stable C ABI, a Unity
-C# package, and an Unreal runtime plugin. No compiled binaries are stored in this
-repository.
+The Runtime Beta plays a complete `.skac` file without starting Python. It consists of
+a C++17 decoder with a stable C ABI, native frozen-Profile playback, a Unity C# package,
+and an Unreal runtime plugin. No compiled binaries are stored in this repository.
 
 ### What works now
 
@@ -18,24 +17,38 @@ repository.
 - decode the complete clip into immutable track data;
 - query frame rate, duration, joint names, and parents;
 - sample local transforms by frame or time with clamp/loop behavior;
+- compile Profile 2.0 once and sample directly into a different target skeleton;
+- share one immutable decoder across multiple per-character playback instances;
 - reuse caller-owned pose buffers during playback;
 - use the same public decoder from Unity and Unreal.
 
 The C ABI returns quaternion `xyzw` plus translation `xyz`. Decoder instances are
-read-only after opening. Separate decoder instances can be sampled on separate
-threads; diagnostics are thread-local.
+read-only after opening. Each retargeter owns reusable scratch buffers and represents
+one playback instance; separate retargeters may share a decoder and run on separate
+threads. Diagnostics are thread-local.
 
 ### Beta limits
 
-- same-character playback only in the native layer;
 - whole-clip loading, not chunked or streaming decode;
 - source coordinate convention and units are preserved;
 - Unity and Unreal adapters do not yet drive a character automatically;
-- the Python Profile 2.0 cross-skeleton path is not yet compiled into this runtime;
+- the target skeleton is an explicit generated JSON companion, not embedded in `.skac`;
+- contact correction is intentionally outside the real-time Profile path;
 - the public repository provides source adapters, not prebuilt engine binaries.
 
-These limits matter: the existing Python Profile workflow and the native playback
-Beta are related parts of the project, but they are not yet one production runtime.
+Profile building remains an offline Python step. Runtime playback only consumes its
+frozen mapping, evaluation order, basis quaternions, and root scale.
+
+### Prepare different-character playback
+
+```text
+python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json
+```
+
+Open the `.skac` decoder once, then call `skac_retargeter_create` with those two JSON
+documents. Create one retargeter per playing character, reuse its output buffer, and
+keep the shared decoder alive until every retargeter is closed.
 
 ### Build the native library
 
@@ -64,6 +77,18 @@ python -m tools.verify_native_runtime --probe build/native/skac_runtime_probe
 The comparison uses a generated public test motion and writes temporary metadata and
 payload files outside the release tree.
 
+The Release benchmark measures time-interpolated sampling after warmup:
+
+```text
+python -m tools.run_native_runtime_benchmark \
+  --benchmark build/native/skac_runtime_benchmark \
+  --output reports/native_runtime_profile_beta.json \
+  --visual reports/native_runtime_profile_beta.svg
+```
+
+The committed report uses a deterministic 300-frame fixture with 65 source and 67
+target joints. It is local regression evidence, not a cross-machine ranking.
+
 [Jump to Chinese](#chinese)
 
 ---
@@ -72,9 +97,9 @@ payload files outside the release tree.
 
 ## 中文
 
-Runtime Beta 是第一条不启动 Python、直接在引擎侧播放完整 `.skac` 文件的路径。它由
-C++17 解码核心、稳定的 C ABI、Unity C# Package 和 Unreal Runtime Plugin 组成。仓库只
-提交源码，不提交编译后的动态库。
+Runtime Beta 可以不启动 Python，直接在引擎侧播放完整 `.skac` 文件。它由 C++17 解码
+核心、稳定的 C ABI、原生冻结 Profile 播放、Unity C# Package 和 Unreal Runtime Plugin
+组成。仓库只提交源码，不提交编译后的动态库。
 
 ### 现在能做什么
 
@@ -83,23 +108,37 @@ C++17 解码核心、稳定的 C ABI、Unity C# Package 和 Unreal Runtime Plugi
 - 一次载入完整动画并生成只读轨道数据；
 - 查询帧数、时长、关节名和父子关系；
 - 按帧或按时间采样，支持截断与循环；
+- 一次编译 Profile 2.0，随后直接采样到不同目标骨骼；
+- 多个角色播放实例共享同一个只读 Decoder；
 - 播放时重复使用调用方提供的姿态缓冲区；
 - Unity 和 Unreal 共用同一个公开解码核心。
 
-C ABI 输出四元数 `xyzw` 和位移 `xyz`。Decoder 打开后只读；不同 Decoder 可以放在不同
-线程采样，错误信息按线程保存。
+C ABI 输出四元数 `xyzw` 和位移 `xyz`。Decoder 打开后只读；每个 Retargeter 拥有可复用
+的临时缓冲区，代表一个播放实例。不同 Retargeter 可以共享 Decoder 并在不同线程运行，
+错误信息按线程保存。
 
 ### Beta 的边界
 
-- 原生层当前只做同角色播放；
 - 当前是整段载入，不是分块或流式解码；
 - 保留源动画的坐标系和单位；
 - Unity、Unreal 适配层暂不自动驱动角色；
-- Python 的 Profile 2.0 跨骨骼路径还没有编译进原生运行时；
+- 目标骨骼使用显式生成的 JSON 配套文件，暂不嵌入 `.skac`；
+- 接触修正刻意不进入实时 Profile 路径；
 - 公开仓库提供适配源码，不提供预编译引擎二进制。
 
-这些边界需要明确：现有 Python Profile 流程和原生播放 Beta 属于同一项目，但现在还不是
-一套已经合并完成的生产运行时。
+Profile Builder 仍然是离线 Python 步骤。运行时只消费冻结的映射、计算顺序、基变换
+四元数和根位移缩放。
+
+### 准备不同角色播放
+
+```text
+python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json
+```
+
+先打开一次 `.skac` Decoder，再把这两个 JSON 交给 `skac_retargeter_create`。每个正在播放
+的角色建立一个 Retargeter，重复使用输出缓冲区，并在所有 Retargeter 关闭之前保留共享
+Decoder。
 
 ### 编译原生库
 
@@ -124,5 +163,17 @@ python -m tools.verify_native_runtime --probe build/native/skac_runtime_probe
 ```
 
 比较使用程序生成的公开测试动画，临时元数据和 Payload 会写在发布目录之外。
+
+Release 基准会在预热后测量带时间插值的采样：
+
+```text
+python -m tools.run_native_runtime_benchmark \
+  --benchmark build/native/skac_runtime_benchmark \
+  --output reports/native_runtime_profile_beta.json \
+  --visual reports/native_runtime_profile_beta.svg
+```
+
+仓库内报告使用确定性生成的 300 帧夹具，源骨骼 65 个关节、目标骨骼 67 个关节。它只作为
+本机回归证据，不拿来做跨机器排名。
 
 [Jump to English](#english)

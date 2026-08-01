@@ -18,6 +18,9 @@ class NativeRuntimeBetaTests(unittest.TestCase):
             "skac_decoder_sample_frame",
             "skac_decoder_sample_time",
             "skac_decoder_get_joint_name",
+            "skac_retargeter_create",
+            "skac_retargeter_sample_frame",
+            "skac_retargeter_sample_time",
         ):
             self.assertIn(symbol, header)
 
@@ -26,6 +29,9 @@ class NativeRuntimeBetaTests(unittest.TestCase):
         manifest = json.loads((package_root / "package.json").read_text(encoding="utf-8"))
         self.assertIn("beta", manifest["version"])
         self.assertTrue((package_root / "Runtime/SkacRuntime.cs").is_file())
+        bindings = (package_root / "Runtime/SkacRuntime.cs").read_text(encoding="utf-8")
+        self.assertIn("CreateRetargeter", bindings)
+        self.assertIn("SampleRetargetTime", bindings)
         binary_suffixes = {".dll", ".dylib", ".so"}
         self.assertFalse(
             any(path.suffix.casefold() in binary_suffixes for path in package_root.rglob("*"))
@@ -40,6 +46,7 @@ class NativeRuntimeBetaTests(unittest.TestCase):
         )
         self.assertIn("skac_decoder_open_container", implementation)
         self.assertIn("FCompression::UncompressMemory", implementation)
+        self.assertIn("skac_retargeter_create", implementation)
 
     def test_runtime_scope_is_documented_in_both_languages(self) -> None:
         document = (ROOT / "RUNTIME_BETA.md").read_text(encoding="utf-8")
@@ -47,6 +54,7 @@ class NativeRuntimeBetaTests(unittest.TestCase):
         self.assertIn("## 中文", document)
         self.assertIn("whole-clip", document)
         self.assertIn("整段载入", document)
+        self.assertIn("Profile 2.0", document)
 
 
 if __name__ == "__main__":

@@ -47,6 +47,7 @@ int main() {
         "schema_version":"1.0.0",
         "frame_count":1,
         "frame_time":0.03333333333333333,
+        "skeleton_sha256":"0000000000000000000000000000000000000000000000000000000000000000",
         "skeleton":{
             "names":["Root"],
             "parents":[-1],
@@ -105,6 +106,66 @@ int main() {
         skac_decoder_close(decoder);
         return 4;
     }
+    const SKAC_STANDARD::string profile = R"json({
+        "schema":"skac.retarget_profile",
+        "schema_version":"2.0.0",
+        "source_skeleton_sha256":"0000000000000000000000000000000000000000000000000000000000000000",
+        "target_skeleton_sha256":"1111111111111111111111111111111111111111111111111111111111111111",
+        "profile_sha256":"2222222222222222222222222222222222222222222222222222222222222222",
+        "root_translation_scale":1,
+        "contact_lock":false,
+        "configuration_scope":"source_target_skeleton_pair",
+        "per_animation_adjustment":false,
+        "transfers":[{
+            "source_joint":0,
+            "target_joint":0,
+            "source_name":"Root",
+            "target_name":"TargetRoot",
+            "basis_quaternion":[1,0,0,0]
+        }],
+        "runtime_plan":{
+            "mode":"compiled_quaternion_frame_v2",
+            "source_joint_indices":[0],
+            "target_joint_indices":[0],
+            "basis_quaternions":[[1,0,0,0]],
+            "source_evaluation_order":[0],
+            "target_evaluation_order":[0],
+            "target_parent_indices":[-1]
+        }
+    })json";
+    const SKAC_STANDARD::string target = R"json({
+        "schema":"skac.runtime_skeleton",
+        "schema_version":"1.0.0",
+        "skeleton_sha256":"1111111111111111111111111111111111111111111111111111111111111111",
+        "skeleton":{
+            "names":["TargetRoot"],
+            "parents":[-1],
+            "offsets":[[0,0,0]],
+            "channels":[["Xposition","Yposition","Zposition","Zrotation","Xrotation","Yrotation"]]
+        }
+    })json";
+    skac_retargeter* retargeter = nullptr;
+    if (skac_retargeter_create(
+            decoder,
+            profile.data(),
+            profile.size(),
+            target.data(),
+            target.size(),
+            &retargeter
+        ) != SKAC_OK) {
+        SKAC_STANDARD::cerr << skac_runtime_last_error() << '\n';
+        skac_decoder_close(decoder);
+        return 5;
+    }
+    skac_retarget_info retarget_info{};
+    if (skac_retargeter_get_info(retargeter, &retarget_info) != SKAC_OK ||
+        retarget_info.target_joint_count != 1 || retarget_info.mapped_joint_count != 1 ||
+        skac_retargeter_sample_frame(retargeter, 0, &pose, 1) != SKAC_OK) {
+        skac_retargeter_close(retargeter);
+        skac_decoder_close(decoder);
+        return 6;
+    }
+    skac_retargeter_close(retargeter);
     skac_decoder_close(decoder);
     return 0;
 }

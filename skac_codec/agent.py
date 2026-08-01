@@ -24,6 +24,7 @@ from .retarget import (
     retarget_motion,
     save_retarget_profile,
 )
+from .runtime import save_runtime_skeleton
 
 
 PROTOCOL = "skac.agent.v1"
@@ -78,6 +79,10 @@ def capabilities() -> dict[str, Any]:
             "profile": {
                 "required": ["source", "target", "output"],
                 "optional": ["overwrite", "up_axis", "contact_lock"],
+            },
+            "runtime_skeleton": {
+                "required": ["target", "output"],
+                "optional": ["overwrite"],
             },
             "quality_gate_same": {
                 "required": ["source", "report", "visual"],
@@ -335,6 +340,28 @@ def _profile(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _runtime_skeleton(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _strict_fields(
+        arguments,
+        required={"target", "output"},
+        optional={"overwrite"},
+        label="arguments",
+    )
+    target = _relative_path(workspace, arguments["target"], "arguments.target", input_file=True)
+    output = _output_path(workspace, arguments)
+    skeleton = read_bvh(target).skeleton
+    _atomic_write(output, lambda path: save_runtime_skeleton(path, skeleton))
+    return {
+        "artifact": {
+            "path": _display_path(workspace, output),
+            "media_type": "application/vnd.skac.runtime-skeleton+json",
+            "bytes": output.stat().st_size,
+        },
+        "joint_count": skeleton.joint_count,
+        "skeleton_sha256": skeleton.signature(),
+    }
+
+
 def _quality_gate_impl(
     workspace: Path,
     arguments: dict[str, Any],
@@ -469,6 +496,7 @@ _OPERATIONS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "inspect": _inspect,
     "decode": _decode,
     "profile": _profile,
+    "runtime_skeleton": _runtime_skeleton,
     "quality_gate_same": _quality_gate_same,
     "quality_gate_different": _quality_gate_different,
     "quality_gate": _quality_gate,

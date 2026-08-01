@@ -11,6 +11,9 @@ import numpy as np
 
 from skac_codec.bvh import loads_bvh
 from skac_codec.format import CodecSettings, _read_container, decode_bytes, encode_bytes
+from skac_codec.model import Skeleton
+from skac_codec.retarget import build_retarget_profile, retarget_motion
+from skac_codec.runtime import runtime_skeleton_bytes
 
 
 TEST_BVH = """HIERARCHY
@@ -108,6 +111,73 @@ def verify(probe: Path) -> dict[str, float | int | bool]:
     )
     if rotation_difference > 1e-6 or translation_difference > 1e-5:
         raise AssertionError("native decoded transforms differ from Python")
+
+    rotation_channels = ("Zrotation", "Xrotation", "Yrotation")
+    target = Skeleton(
+        names=("Root", "Spacer", "Child"),
+        parents=np.asarray([-1, 0, 1], dtype=np.int32),
+        offsets=np.asarray([[0, 0, 0], [0, 1, 0], [0, 1, 0]], dtype=np.float64),
+        channels=(
+            ("Xposition", "Yposition", "Zposition") + rotation_channels,
+            rotation_channels,
+            rotation_channels,
+        ),
+        end_site_offsets=np.asarray([[0, 0, 0], [0, 0, 0], [0, 1, 0]], dtype=np.float64),
+        has_end_sites=np.asarray([False, False, True], dtype=np.bool_),
+    )
+    profile = build_retarget_profile(decoded.skeleton, target)
+    expected_target, _ = retarget_motion(decoded, target, profile)
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        metadata_path = root / "metadata.json"
+        payload_path = root / "payload.bin"
+        profile_path = root / "profile.json"
+        target_path = root / "target.json"
+        metadata_path.write_bytes(metadata_bytes)
+        payload_path.write_bytes(raw_payload)
+        profile_path.write_text(
+            json.dumps(profile.to_dict(), sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        target_path.write_bytes(runtime_skeleton_bytes(target))
+        retargeted = subprocess.run(
+            [
+                str(probe.resolve()),
+                str(metadata_path),
+                str(payload_path),
+                str(profile_path),
+                str(target_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+    target_rotations = np.empty_like(expected_target.local_rotations)
+    target_translations = np.empty_like(expected_target.local_translations)
+    target_pose_count = 0
+    for line in retargeted.stdout.splitlines():
+        fields = line.split()
+        if not fields or fields[0] != "pose":
+            continue
+        frame = int(fields[1])
+        joint = int(fields[2])
+        values = np.asarray([float(item) for item in fields[3:]], dtype=np.float64)
+        target_rotations[frame, joint] = values[[3, 0, 1, 2]]
+        target_translations[frame, joint] = values[4:7]
+        target_pose_count += 1
+    expected_target_poses = expected_target.frame_count * target.joint_count
+    if target_pose_count != expected_target_poses:
+        raise AssertionError("native retarget probe did not return every target pose")
+    retarget_rotation_difference = float(
+        np.max(np.abs(target_rotations - expected_target.local_rotations))
+    )
+    retarget_translation_difference = float(
+        np.max(np.abs(target_translations - expected_target.local_translations))
+    )
+    if retarget_rotation_difference > 1e-6 or retarget_translation_difference > 1e-5:
+        raise AssertionError("native retarget transforms differ from Python Profile 2.0")
     return {
         "passed": True,
         "frame_count": decoded.frame_count,
@@ -115,6 +185,10 @@ def verify(probe: Path) -> dict[str, float | int | bool]:
         "pose_count": expected_poses,
         "rotation_component_difference_max": rotation_difference,
         "translation_component_difference_max": translation_difference,
+        "retarget_target_joint_count": target.joint_count,
+        "retarget_pose_count": expected_target_poses,
+        "retarget_rotation_component_difference_max": retarget_rotation_difference,
+        "retarget_translation_component_difference_max": retarget_translation_difference,
     }
 
 

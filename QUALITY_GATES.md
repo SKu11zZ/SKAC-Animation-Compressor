@@ -73,6 +73,21 @@ the reference transform, and playback cost. Dataset retargeting scores remain se
 The public Python decoder currently reconstructs a complete clip before playback.
 Chunked and random-access decoding are later format milestones.
 
+### Native Runtime Beta gate
+
+The generated Release fixture adds engine-facing regression limits without replacing
+the two animation-quality gates above:
+
+| Check | Limit |
+| --- | ---: |
+| 65-joint same-character time-sample p95 | <= 0.10 ms |
+| 65-to-67-joint Profile time-sample p95 | <= 0.25 ms |
+| 100 sequential Profile instances, whole tick p95 | <= 16.667 ms |
+
+The benchmark uses 2,000 measured ticks after warmup and excludes file I/O. It is a
+local performance regression gate, not a cross-machine comparison. Each retargeter is
+created before timing and reuses its scratch and output buffers.
+
 [跳到中文](#chinese)
 
 ---
@@ -141,5 +156,18 @@ Codec 误差、共有映射覆盖、快速执行器与参考实现一致，以�
 分数仍然单独报告。
 
 当前公开 Python 解码器会先还原完整动画；分块和随机帧解码还是后续格式能力。
+
+### 原生 Runtime Beta 门槛
+
+生成型 Release 夹具增加了引擎侧回归门槛，但不会替代上面的两套动画质量检查：
+
+| 检查项 | 固定门槛 |
+| --- | ---: |
+| 65 关节同角色时间采样 p95 | <= 0.10 ms |
+| 65 到 67 关节 Profile 时间采样 p95 | <= 0.25 ms |
+| 100 个 Profile 实例串行整帧 p95 | <= 16.667 ms |
+
+基准会预热后测量 2,000 个 Tick，并排除文件读写。它是本机性能回归门槛，不是跨机器比较。
+Retargeter 全部在计时前创建，测试期间重复使用临时缓冲区和输出缓冲区。
 
 [Jump to English](#english)

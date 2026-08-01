@@ -1,6 +1,6 @@
 {
   "name": "com.skac.runtime",
-  "version": "0.1.0-beta.1",
+  "version": "0.2.0-beta.1",
   "displayName": "SKAC Runtime Beta",
   "description": "Unity C# bindings for the native SKAC same-character decoder.",
   "unity": "2021.3",

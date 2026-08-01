@@ -83,6 +83,7 @@ python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
 python -m skac_codec quality-gate-same source.bvh --output reports/same.json --visual reports/same.svg
 python -m skac_codec quality-gate-different source.bvh target.bvh --output reports/different.json --visual reports/different.svg
@@ -101,9 +102,17 @@ operations, responses, and exit codes. The stable Agent protocol covers the test
 workflow; it does not currently expose the experimental FBX bridge.
 
 For engine playback, `RUNTIME_BETA.md` documents the native C ABI and the Unity/Unreal
-source adapters. The Beta currently covers whole-clip same-character decoding; native
-Profile playback, streaming, and automatic engine coordinate conversion remain later
-work.
+source adapters. The Beta now covers whole-clip same-character decoding and native
+Profile 2.0 playback into a different target skeleton. Streaming and automatic engine
+coordinate conversion remain later work.
+
+![Native same- and different-character runtime sampling](reports/native_runtime_profile_beta.svg)
+
+The generated Release fixture measures time-interpolated sampling after warmup: 1.40 µs
+P95 for a 65-joint same-character sample, 3.80 µs for one 65-to-67-joint Profile sample,
+and 0.531 ms P95 for 100 sequential Profile instances. These machine-dependent numbers
+are local regression evidence; fixture, thresholds, and all percentiles are recorded in
+[`native_runtime_profile_beta.json`](reports/native_runtime_profile_beta.json).
 
 ### Where the data goes
 
@@ -139,7 +148,7 @@ distribution, end-effector IK, and robust contact locking remain later milestone
 experimental Blender FBX bridge is included, but it has not completed a real FBX round
 trip on this development machine; see `FBX.md` before using it.
 
-The `reports` directory contains eight aggregate records:
+The `reports` directory contains nine aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - a one-file, two-target public retargeting smoke test;
@@ -148,6 +157,7 @@ The `reports` directory contains eight aggregate records:
 - a full SAN run using `skac_public_core`;
 - a same-character Codec gate with a matching SVG summary;
 - a different-character Profile 2.0 playback gate with a matching SVG summary;
+- a native same/different-character sampling benchmark with a matching SVG summary;
 - an eight-character, 160-clip Codec compression and decode showcase.
 
 The reports keep the scoring definitions beside the numbers. Raw motions and generated
@@ -240,6 +250,7 @@ python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
+python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
 python -m skac_codec quality-gate-same source.bvh --output reports/same.json --visual reports/same.svg
 python -m skac_codec quality-gate-different source.bvh target.bvh --output reports/different.json --visual reports/different.svg
@@ -256,8 +267,15 @@ python tools/audit_release.py .
 协议目前只覆盖已经验证过的 BVH 流程，不开放实验性的 FBX 桥。
 
 引擎运行时接入见 `RUNTIME_BETA.md`，里面说明了原生 C ABI 和 Unity/Unreal 源码适配层。
-当前 Beta 覆盖整段载入和同角色解码；原生 Profile 播放、流式解码和引擎坐标自动转换仍是
-后续工作。
+当前 Beta 已经覆盖整段载入、同角色解码，以及通过 Profile 2.0 直接采样到不同目标骨骼；
+流式解码和引擎坐标自动转换仍是后续工作。
+
+![原生同角色与不同角色运行时采样](reports/native_runtime_profile_beta.svg)
+
+生成型 Release 夹具会在预热后测量带时间插值的采样：65 关节同角色单次采样 P95 为
+1.40 微秒，65 到 67 关节的单个 Profile 采样 P95 为 3.80 微秒，100 个 Profile 实例串行
+整帧 P95 为 0.531 毫秒。这些数字跟机器有关，只作为本地回归证据；夹具、门槛和全部
+百分位都记录在 [`native_runtime_profile_beta.json`](reports/native_runtime_profile_beta.json)。
 
 ### 数据放哪
 
@@ -286,7 +304,7 @@ Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换�
 仓库已经包含实验性的 Blender FBX 适配层，但这台开发机还没有完成真实 FBX 往返验证；
 使用前请先看 `FBX.md`。
 
-`reports` 里目前有八份汇总记录：
+`reports` 里目前有九份汇总记录：
 
 - 一份使用公开 SAN BVH 的 Codec 1.0 往返测试；
 - 一份“单文件、双目标”的公开重定向测试；
@@ -295,6 +313,7 @@ Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换�
 - 使用 `skac_public_core` 跑完的 SAN 测试；
 - 一份同角色 Codec 门槛，以及对应的 SVG 可视化摘要；
 - 一份不同角色 Profile 2.0 播放门槛，以及对应的 SVG 可视化摘要；
+- 一份原生同角色/不同角色采样基准，以及对应的 SVG 可视化摘要；
 - 一份八角色、160 条动画的 Codec 压缩与解码性能展示。
 
 每份报告都会把数字和对应口径放在一起。原始动作和生成结果不会随仓库发布。

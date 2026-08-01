@@ -78,6 +78,7 @@ Protocol v1 operations:
 - `decode`: `.skac` to the source BVH skeleton, or to a target skeleton when both
   `target` and `profile` are supplied;
 - `profile`: freeze one source-to-target skeleton profile;
+- `runtime_skeleton`: export the target-skeleton JSON consumed by the native runtime;
 - `quality_gate_same`: gate Codec reconstruction and direct source-character decode;
   it accepts no target or Profile fields;
 - `quality_gate_different`: gate Codec decode plus frozen target-character playback;
@@ -122,7 +123,7 @@ skac-agent run --workspace ./job --request ./encode-request.json --pretty
 
 - `protocol`：目前是 `skac.agent.v1`；
 - `request_id`：调用方自己的任务 ID，响应会原样带回；
-- `operation`：`encode`、`inspect`、`decode`、`profile`、`quality_gate_same` 或
+- `operation`：`encode`、`inspect`、`decode`、`profile`、`runtime_skeleton`、`quality_gate_same` 或
   `quality_gate_different`；两套门槛都会同时生成 JSON 和 SVG；
 - `arguments`：该操作需要的路径和选项。
 

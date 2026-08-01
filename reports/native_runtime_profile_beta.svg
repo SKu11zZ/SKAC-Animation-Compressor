@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780">
+<rect width="1400" height="780" fill="#ffffff"/>
+<style>text{font-family:Inter,Segoe UI,Noto Sans SC,Microsoft YaHei,Arial,sans-serif}.title{font-size:32px;font-weight:750;fill:#17202a}.sub{font-size:14px;fill:#667085}.kpi{font-size:29px;font-weight:750;fill:#17202a}.label{font-size:12px;font-weight:650;fill:#667085}.panel{font-size:18px;font-weight:700;fill:#17202a}.row{font-size:13px;font-weight:600;fill:#17202a}.value{font-size:12px;font-weight:700;fill:#17202a}.note{font-size:12px;fill:#667085}</style>
+<text x="54.0" y="54.0" class="title">Native Runtime Sampling / 原生运行时采样</text>
+<text x="54.0" y="82.0" class="sub">Generated 300-frame fixture · 65 source joints → 67 target joints · Release build · I/O excluded</text>
+<text x="54.0" y="104.0" class="sub">生成型 300 帧夹具 · 65 源关节 → 67 目标关节 · Release 构建 · 不含文件读写</text>
+<rect x="54" y="132" width="306" height="112" rx="10" fill="#f7f9fc" stroke="#d7dee7"/>
+<text x="74.0" y="178.0" class="kpi">1.40 μs</text>
+<text x="74.0" y="207.0" class="label">SAME CHARACTER P95</text>
+<text x="74.0" y="228.0" class="sub">同角色单次采样 P95</text>
+<rect x="386" y="132" width="306" height="112" rx="10" fill="#f7f9fc" stroke="#d7dee7"/>
+<text x="406.0" y="178.0" class="kpi">3.80 μs</text>
+<text x="406.0" y="207.0" class="label">PROFILE PLAYBACK P95</text>
+<text x="406.0" y="228.0" class="sub">跨骨骼单次采样 P95</text>
+<rect x="718" y="132" width="306" height="112" rx="10" fill="#f7f9fc" stroke="#d7dee7"/>
+<text x="738.0" y="178.0" class="kpi">0.531 ms</text>
+<text x="738.0" y="207.0" class="label">100 INSTANCES TICK P95</text>
+<text x="738.0" y="228.0" class="sub">100 实例整帧 P95</text>
+<rect x="1050" y="132" width="306" height="112" rx="10" fill="#f7f9fc" stroke="#d7dee7"/>
+<text x="1070.0" y="178.0" class="kpi">PASS</text>
+<text x="1070.0" y="207.0" class="label">QUALITY GATES</text>
+<text x="1070.0" y="228.0" class="sub">运行时质量门槛</text>
+<text x="54.0" y="294.0" class="panel">Per-sample P95 / 单次采样 P95</text>
+<text x="54.0" y="317.0" class="sub">Time-interpolated sampling; lower is better / 时间插值采样，越低越好</text>
+<text x="746.0" y="294.0" class="panel">Different-character tick P95 / 跨骨骼整帧 P95</text>
+<text x="746.0" y="317.0" class="sub">Sequential playback instances; 16.667 ms frame reference / 串行播放实例；16.667 ms 帧预算参考</text>
+<text x="194.0" y="377.0" class="row" text-anchor="end">Same ×1 / 同角色</text>
+<rect x="208.0" y="360.0" width="400.0" height="24.0" rx="4" fill="#dbe8ff"/>
+<rect x="208.0" y="360.0" width="87.9" height="24.0" rx="4" fill="#2864dc"/>
+<text x="303.9" y="377.0" class="value">1.40 μs</text>
+<text x="194.0" y="437.0" class="row" text-anchor="end">Profile ×1 / 跨骨骼</text>
+<rect x="208.0" y="420.0" width="400.0" height="24.0" rx="4" fill="#dbe8ff"/>
+<rect x="208.0" y="420.0" width="238.7" height="24.0" rx="4" fill="#2864dc"/>
+<text x="454.7" y="437.0" class="value">3.80 μs</text>
+<text x="194.0" y="497.0" class="row" text-anchor="end">Profile ×10 / 跨骨骼</text>
+<rect x="208.0" y="480.0" width="400.0" height="24.0" rx="4" fill="#dbe8ff"/>
+<rect x="208.0" y="480.0" width="241.2" height="24.0" rx="4" fill="#2864dc"/>
+<text x="457.2" y="497.0" class="value">3.84 μs</text>
+<text x="194.0" y="557.0" class="row" text-anchor="end">Profile ×50 / 跨骨骼</text>
+<rect x="208.0" y="540.0" width="400.0" height="24.0" rx="4" fill="#dbe8ff"/>
+<rect x="208.0" y="540.0" width="271.6" height="24.0" rx="4" fill="#2864dc"/>
+<text x="487.6" y="557.0" class="value">4.32 μs</text>
+<text x="194.0" y="617.0" class="row" text-anchor="end">Profile ×100 / 跨骨骼</text>
+<rect x="208.0" y="600.0" width="400.0" height="24.0" rx="4" fill="#dbe8ff"/>
+<rect x="208.0" y="600.0" width="333.3" height="24.0" rx="4" fill="#2864dc"/>
+<text x="549.3" y="617.0" class="value">5.31 μs</text>
+<text x="888.0" y="377.0" class="row" text-anchor="end">1 instances / 实例</text>
+<rect x="902.0" y="360.0" width="400.0" height="24.0" rx="4" fill="#f8e7bd"/>
+<rect x="902.0" y="360.0" width="0.1" height="24.0" rx="4" fill="#c98a16"/>
+<text x="910.1" y="377.0" class="value">0.004 ms</text>
+<text x="888.0" y="452.0" class="row" text-anchor="end">10 instances / 实例</text>
+<rect x="902.0" y="435.0" width="400.0" height="24.0" rx="4" fill="#f8e7bd"/>
+<rect x="902.0" y="435.0" width="0.9" height="24.0" rx="4" fill="#c98a16"/>
+<text x="910.9" y="452.0" class="value">0.038 ms</text>
+<text x="888.0" y="527.0" class="row" text-anchor="end">50 instances / 实例</text>
+<rect x="902.0" y="510.0" width="400.0" height="24.0" rx="4" fill="#f8e7bd"/>
+<rect x="902.0" y="510.0" width="4.8" height="24.0" rx="4" fill="#c98a16"/>
+<text x="914.8" y="527.0" class="value">0.216 ms</text>
+<text x="888.0" y="602.0" class="row" text-anchor="end">100 instances / 实例</text>
+<rect x="902.0" y="585.0" width="400.0" height="24.0" rx="4" fill="#f8e7bd"/>
+<rect x="902.0" y="585.0" width="11.8" height="24.0" rx="4" fill="#c98a16"/>
+<text x="921.8" y="602.0" class="value">0.531 ms</text>
+<line x1="1272.4" y1="344" x2="1272.4" y2="648" stroke="#17202a" stroke-width="2" stroke-dasharray="5 5"/>
+<text x="1266.4" y="668.0" class="note" text-anchor="end">16.667 ms / 60 FPS</text>
+<text x="54.0" y="724.0" class="note">P95 from 2,000 measured ticks after warmup. Results are machine-dependent; use them as local regression evidence, not a hardware ranking.</text>
+<text x="54.0" y="748.0" class="note">预热后统计 2,000 个 Tick 的 P95。结果与机器有关，只用于本地回归，不用于硬件排名。</text>
+</svg>
