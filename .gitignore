@@ -1,0 +1,73 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local editor and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Data, checkpoints, generated motions, and external repositories
+data/
+datasets/
+public_data/
+downloads/
+checkpoints/
+pretrained/
+models/
+outputs/
+exports/
+third_party/
+vendor/
+
+# Motion, character, geometry, and scene assets
+*.bvh
+*.fbx
+*.gltf
+*.glb
+*.blend
+*.abc
+*.obj
+*.usd
+*.usda
+*.usdc
+*.usdz
+
+# Model weights and numerical payloads
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.pb
+*.npy
+*.npz
+
+# Archives, binaries, and rendered media
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+*.exe
+*.dll
+*.so
+*.dylib
+*.mp4
+*.mov
+*.avi
+*.mkv

@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "method": {
+    "name": "public_rotation_copy_pipeline_baseline",
+    "claim_scope": "Pipeline baseline only; not a product-method or formal SKAC result.",
+    "algorithm": "Copy same-name local joint rotations, leave unmatched target joints at identity, and scale root translation by the target-to-source reference height ratio.",
+    "configuration_scope": "source_target_skeleton_pair",
+    "per_animation_adjustment": false
+  },
+  "protocol": {
+    "dataset": "SAN public Mixamo test set",
+    "test_motion_count": 106,
+    "cross_structure_prediction_count": 424,
+    "intra_structure_prediction_count": 1696,
+    "total_prediction_count": 2120,
+    "total_frame_count": 203280,
+    "frozen_profile_count": 20,
+    "metric": "SAN official-code normalized global-coordinate MSE",
+    "display_scale": 1000
+  },
+  "scores": {
+    "intra_structure_official_all_pairs_x1e3": 6.37829994184878,
+    "intra_structure_non_identity_pairs_x1e3": 8.50439992246245,
+    "cross_structure_x1e3": 16.448399021613692,
+    "cross_target_details_x1e3": {
+      "Goblin_m": 10.845732030172897,
+      "Mousey_m": 39.949453760247216,
+      "Mremireh_m": 12.49618158901812,
+      "Vampire_m": 2.5022287070165357
+    }
+  },
+  "san_official_model_reference": {
+    "intra_structure_official_all_pairs_x1e3": 0.4709613829550545,
+    "intra_structure_non_identity_pairs_x1e3": 0.5552609720660319,
+    "cross_structure_x1e3": 2.2517242528146486
+  },
+  "relative_to_san_official_model": {
+    "intra_structure_official_all_pairs_error_ratio": 13.543148488795488,
+    "intra_structure_non_identity_error_ratio": 15.316041195582361,
+    "cross_structure_error_ratio": 7.304801643031221,
+    "lower_is_better": true
+  },
+  "artifacts": {
+    "prediction_bvh_count": 2120,
+    "prediction_bvh_bytes": 216232598,
+    "prediction_bvh_tree_sha256": "985a895b46c42695ff0770359daa86205b21344919b7560a128392756d709d95",
+    "prediction_manifest_sha256": "0f9da10ef329c20c5114e549405ef54e8d607706082b38e33b30ab9f6e70ab48",
+    "run_summary_sha256": "1ce16a1b195cfca0e3cce388d19334363d000c096800c1f9be67522cf0966c40",
+    "metric_report_sha256": "6e8b87b28b337d4a3f0eb03eaa1ef10d1daf37747555de9d16d90ef679c72e1a",
+    "runner_sha256": "4c03680171ff85e1a1dd4ac20ec56babb061319bdf3b2af8e8d77b8de518749d",
+    "scorer_sha256": "6b5d4c99dbe93696a1c7ce84b77583374730974f09cfb8a91ebc070d6f4d4195"
+  },
+  "interpretation": [
+    "The run validates end-to-end SAN data preparation, frozen profile generation, BVH export, and official-code scoring.",
+    "Identity source-target pairs are nearly exact for rotation copy and materially lower the official all-pairs intra score.",
+    "The non-identity intra score is the more informative diagnostic for retargeting quality.",
+    "These values must not be presented as the score of an implementation that was not invoked by this public runner."
+  ]
+}

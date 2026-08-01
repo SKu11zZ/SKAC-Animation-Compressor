@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "method": {
+    "name": "SAN",
+    "upstream_repository": "https://github.com/DeepMotionEditing/deep-motion-editing",
+    "upstream_commit": "74fff8fb35e6378351d03fb14ee22fccae28b0bf"
+  },
+  "public_test_data": {
+    "source": "https://docs.google.com/uc?export=download&id=1_849LvuT3WBEHktBT97P2oMBzeJz7-UP",
+    "archive_bytes": 84164426,
+    "archive_sha256": "de06d429e8c7f04dc62be8bd0415ce515afd5fdb886536bbaf1c8f3a9eedc2c1",
+    "character_count": 8,
+    "motion_count_per_character": 106,
+    "bvh_count": 864,
+    "validation_errors": 0
+  },
+  "checkpoints": [
+    {
+      "id": "topology0_auto_encoder_20000",
+      "bytes": 9129966,
+      "sha256": "031a370693ce14ef8b2522a44bc769c829f36579c11bbd9e4c79521b8c97b8f1"
+    },
+    {
+      "id": "topology0_static_encoder_20000",
+      "bytes": 201392,
+      "sha256": "8679b1d16a18537cc7fe5c3841ba32aa0866e9797b7eba85436d7d98dcedf0cb"
+    },
+    {
+      "id": "topology1_auto_encoder_20000",
+      "bytes": 15958790,
+      "sha256": "6a150ff0dcedf545d0702a13d711255417a108bb4c727533a226172cad1380dc"
+    },
+    {
+      "id": "topology1_static_encoder_20000",
+      "bytes": 350792,
+      "sha256": "2a6dbe6bb24ccedfbe1a83b364226c3afa93a25d153c00665b56044bf8da9e6a"
+    }
+  ],
+  "environment": {
+    "python": "3.12.13",
+    "numpy": "1.26.4",
+    "torch": "2.7.1+cu128",
+    "cuda_runtime": "12.8",
+    "gpu": "NVIDIA GeForce RTX 3060"
+  },
+  "execution": {
+    "cross_structure_prediction_count": 424,
+    "intra_structure_prediction_count": 1696,
+    "saved_bvh_count_including_ground_truth_copies": 4240,
+    "saved_bvh_bytes": 433889417,
+    "saved_bvh_tree_sha256": "7de09988786342904d06f71d4236c62ee88e2615a8380042fbe5dfbf4d984720",
+    "runtime_compatibility_patch_sha256": "08e61d5eb4d7925282e914925fd700de534449f8549072ecea634bafdc2eb8b1"
+  },
+  "official_code_metric": {
+    "definition": "Mean squared global-joint coordinate error divided by squared target height; virtual joints excluded.",
+    "intra_structure_mse_raw": 0.00047096138295505454,
+    "intra_structure_mse_x1e3": 0.4709613829550545,
+    "cross_structure_mse_raw": 0.0022517242528146486,
+    "cross_structure_mse_x1e3": 2.2517242528146486,
+    "independent_rescore_matches_official_log": true
+  },
+  "paper_formula_audit": {
+    "definition": "Mean Euclidean global-joint position distance divided by target height and multiplied by 1,000; virtual joints excluded.",
+    "intra_structure_non_identity_pairs_x1e3": 30.34623670552244,
+    "intra_structure_including_identity_pairs_x1e3": 27.21427994939524,
+    "cross_structure_x1e3": 59.93309791955259,
+    "scope": "Formula audit over outputs saved by the official test script; not a reproduction of the paper table's six-pair aggregation."
+  },
+  "paper_table_reference": {
+    "intra_structure_x1e3": 2.76,
+    "cross_structure_x1e3": 2.25,
+    "source": "https://arxiv.org/pdf/2005.05732"
+  },
+  "artifact_hashes": {
+    "official_test_log_sha256": "f7311f64f05c3d7bb54a5357ac64b7a7dd9d7d61480343e761a8a3dd77a422d4",
+    "official_code_report_sha256": "9cc4f266e0e3b2f9863134466230d9175879c402a384545bb7aa792aa05b826e",
+    "paper_formula_report_sha256": "e6af22f2d6f4c9e5556bc48089e276f7c0972962558ba82109732be4295d1aea",
+    "saved_bvh_manifest_sha256": "f7312533233c16a99ed38bb32b5a89116636eaad474719cebb50d77c5f751085"
+  }
+}

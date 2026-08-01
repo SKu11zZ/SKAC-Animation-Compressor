@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skac-academic-benchmark"
+version = "0.1.0"
+description = "Public benchmark for motion retargeting and animation codec reconstruction"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Repository = "https://github.com/SKu11zZ/SKAC-Animation-Compressor"
+Issues = "https://github.com/SKu11zZ/SKAC-Animation-Compressor/issues"
+
+[tool.setuptools.packages.find]
+include = ["skac_benchmark*", "skac_public_core*"]

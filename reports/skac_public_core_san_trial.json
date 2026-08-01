@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "status": "completed",
+  "method": {
+    "name": "skac_public_core_rotation_copy",
+    "implementation_scope": "Independent public-safe cross-skeleton core",
+    "product_feature_parity_claimed": false,
+    "configuration_scope": "source_target_skeleton_pair",
+    "per_animation_adjustment": false
+  },
+  "protocol": {
+    "dataset": "SAN public Mixamo test set",
+    "test_motion_count": 106,
+    "cross_structure_prediction_count": 424,
+    "intra_structure_prediction_count": 1696,
+    "total_prediction_count": 2120,
+    "total_frame_count": 203280,
+    "frozen_profile_count": 20,
+    "metric": "SAN official-code normalized global-coordinate MSE",
+    "display_scale": 1000
+  },
+  "scores": {
+    "intra_structure_official_all_pairs_x1e3": 6.37829994184878,
+    "intra_structure_non_identity_pairs_x1e3": 8.50439992246245,
+    "cross_structure_x1e3": 16.448399021613692
+  },
+  "san_official_model_reference": {
+    "intra_structure_official_all_pairs_x1e3": 0.4709613829550545,
+    "intra_structure_non_identity_pairs_x1e3": 0.5552609720660319,
+    "cross_structure_x1e3": 2.2517242528146486
+  },
+  "artifacts": {
+    "prediction_bvh_count": 2120,
+    "prediction_bvh_bytes": 216232598,
+    "prediction_bvh_tree_sha256": "985a895b46c42695ff0770359daa86205b21344919b7560a128392756d709d95",
+    "prediction_manifest_sha256": "0f9da10ef329c20c5114e549405ef54e8d607706082b38e33b30ab9f6e70ab48",
+    "run_summary_sha256": "bab3cebbe88c2eb2dbdad33b71b22888f3ee617d4e8539893e300e688ee4273c",
+    "metric_report_sha256": "061ccd5c0f42f979d6d45ddb947b121dc188d30fd90f810bcccef8c1243f6828",
+    "public_core_sha256": "0a4ee472c7dccaeebe730e7fe3746af07c8fcc3479bd41fd7440a7d376744c99",
+    "runner_sha256": "2ddfd78571ad26805aa8fced13af391bdd2006b07d143beadfe19788c881ece7",
+    "scorer_sha256": "a178df389f949c79fd12fb45d41aa65568609e366f9acf67761f6b64184cf6d7"
+  },
+  "interpretation": [
+    "The SAN runner imports and invokes the independent public core for every prediction.",
+    "The result is a reproducible public baseline and must not be represented as a non-public implementation's score.",
+    "Identity source-target pairs materially lower the official all-pairs intra score; the non-identity value is reported separately."
+  ]
+}
