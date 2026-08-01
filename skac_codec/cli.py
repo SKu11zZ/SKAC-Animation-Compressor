@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .bvh import read_bvh, write_bvh
+from .fbx import extract_fbx_to_bvh, inject_bvh_into_fbx, validate_fbx
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
 from .retarget import (
@@ -127,6 +128,42 @@ def _profile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _fbx_extract(args: argparse.Namespace) -> int:
+    report = extract_fbx_to_bvh(
+        args.input,
+        args.output,
+        blender_executable=args.blender,
+        armature_name=args.armature,
+        timeout_seconds=args.timeout,
+    )
+    _write_json(report)
+    return 0
+
+
+def _fbx_inject(args: argparse.Namespace) -> int:
+    report = inject_bvh_into_fbx(
+        args.template,
+        args.animation,
+        args.output,
+        blender_executable=args.blender,
+        armature_name=args.armature,
+        timeout_seconds=args.timeout,
+    )
+    _write_json(report)
+    return 0
+
+
+def _fbx_validate(args: argparse.Namespace) -> int:
+    _write_json(
+        validate_fbx(
+            args.input,
+            blender_executable=args.blender,
+            timeout_seconds=args.timeout,
+        )
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="skac", description="Encode, decode, and inspect SKAC animation files."
@@ -170,6 +207,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable the experimental foot-contact root correction",
     )
     profile_parser.set_defaults(handler=_profile)
+
+    extract_parser = subparsers.add_parser(
+        "fbx-extract", help="extract an FBX armature animation to BVH through Blender"
+    )
+    extract_parser.add_argument("input", type=Path)
+    extract_parser.add_argument("--output", "-o", type=Path, required=True)
+    extract_parser.add_argument("--blender", type=Path)
+    extract_parser.add_argument("--armature")
+    extract_parser.add_argument("--timeout", type=int, default=300)
+    extract_parser.set_defaults(handler=_fbx_extract)
+
+    inject_parser = subparsers.add_parser(
+        "fbx-inject", help="bake a target BVH animation into an FBX character"
+    )
+    inject_parser.add_argument("template", type=Path)
+    inject_parser.add_argument("animation", type=Path)
+    inject_parser.add_argument("--output", "-o", type=Path, required=True)
+    inject_parser.add_argument("--blender", type=Path)
+    inject_parser.add_argument("--armature")
+    inject_parser.add_argument("--timeout", type=int, default=600)
+    inject_parser.set_defaults(handler=_fbx_inject)
+
+    validate_parser = subparsers.add_parser(
+        "fbx-validate", help="open and inspect an FBX through Blender"
+    )
+    validate_parser.add_argument("input", type=Path)
+    validate_parser.add_argument("--blender", type=Path)
+    validate_parser.add_argument("--timeout", type=int, default=300)
+    validate_parser.set_defaults(handler=_fbx_validate)
     return parser
 
 

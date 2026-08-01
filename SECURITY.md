@@ -17,6 +17,8 @@ The following rules are mandatory:
    not be committed without a separate provenance and redistribution review.
    Generated retarget profiles also contain source and target joint names and follow the
    same rule.
+   FBX and bridge-generated BVH files stay outside version control. A validation report
+   does not grant redistribution rights for the asset it describes.
 4. Automatic-track configuration is frozen once per skeleton. Per-animation tuning is
    rejected.
 5. Artist Gold is a separate track and can never be aggregated with automatic results.

@@ -19,6 +19,7 @@ public baseline.
 ### What is here
 
 - `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
+- `skac_codec.fbx`: an optional experimental Blender bridge for FBX characters;
 - `skac_public_core`: a deterministic NumPy-only cross-skeleton baseline;
 - `skac_benchmark`: manifest loading, validation, metrics, and the command-line runner;
 - `tools`: SAN-compatible scoring, public baseline runners, hashing, and release checks;
@@ -47,6 +48,7 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -84,8 +86,9 @@ chains, rest-basis conversion, extra engine roots, and body-scale compensation. 
 `FORMAT.md` and `RETARGETING.md` for the two contracts.
 
 This is still a deterministic reference implementation. Production twist
-distribution, end-effector IK, robust contact locking, and FBX I/O remain later
-milestones rather than claims of the current release.
+distribution, end-effector IK, and robust contact locking remain later milestones. An
+experimental Blender FBX bridge is included, but it has not completed a real FBX round
+trip on this development machine; see `FBX.md` before using it.
 
 The `reports` directory contains five aggregate records:
 
@@ -134,6 +137,7 @@ downloaded materials keep their own licenses and terms.
 ### 这里现在有什么
 
 - `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
+- `skac_codec.fbx`：通过 Blender 处理 FBX 角色的可选实验适配层；
 - `skac_public_core`：只依赖 NumPy 的确定性跨骨骼基线；
 - `skac_benchmark`：清单读取、合法性检查、指标和命令行入口；
 - `tools`：SAN 兼容评分、公开基线运行器、哈希和发布审计；
@@ -160,6 +164,7 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -188,8 +193,9 @@ python tools/audit_release.py .
 当前重定向器能处理语义别名、不同长度的脊柱链、参考姿态基变换、额外引擎 Root 和身体
 比例补偿。两部分约定分别见 `FORMAT.md` 和 `RETARGETING.md`。
 
-这仍然是确定性参考实现。生产级 Twist 分配、末端 IK、稳定接触锁定和 FBX 输入输出仍是
-后续里程碑，不会写成当前版本已经具备的能力。
+这仍然是确定性参考实现。生产级 Twist 分配、末端 IK 和稳定接触锁定仍是后续里程碑。
+仓库已经包含实验性的 Blender FBX 适配层，但这台开发机还没有完成真实 FBX 往返验证；
+使用前请先看 `FBX.md`。
 
 `reports` 里目前有五份汇总记录：
 
