@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
@@ -11,8 +13,10 @@ from skac_codec.math3d import euler_order_to_quaternion, quaternion_angular_erro
 from skac_codec.model import MotionClip, Skeleton
 from skac_codec.retarget import (
     build_retarget_profile,
+    compile_retarget_profile,
     load_retarget_profile,
     retarget_motion,
+    retarget_motion_reference,
     save_retarget_profile,
 )
 
@@ -140,6 +144,73 @@ class RetargetTests(unittest.TestCase):
         profile = build_retarget_profile(source.skeleton, first_target)
         with self.assertRaisesRegex(ValueError, "target skeleton"):
             retarget_motion(source, second_target, profile)
+
+    def test_compiled_frame_runtime_matches_matrix_reference(self) -> None:
+        source = source_clip()
+        target = target_skeleton(1.2, True)
+        profile = build_retarget_profile(source.skeleton, target)
+        runtime = compile_retarget_profile(source.skeleton, target, profile)
+        compiled, diagnostics = retarget_motion(
+            source, target, profile, runtime=runtime
+        )
+        reference, _ = retarget_motion_reference(source, target, profile)
+        error = quaternion_angular_error_degrees(
+            compiled.local_rotations, reference.local_rotations
+        )
+        self.assertLessEqual(float(np.max(error)), 1e-8)
+        self.assertTrue(
+            np.allclose(compiled.local_translations, reference.local_translations)
+        )
+        self.assertEqual(diagnostics["runtime_mode"], "compiled_quaternion_frame_v2")
+        self.assertEqual(profile.core_coverage, 1.0)
+
+    def test_profile_v2_disambiguates_smpl_shoulder_chain(self) -> None:
+        channels = (("Xposition", "Yposition", "Zposition", "Zrotation", "Xrotation", "Yrotation"),) + (
+            ("Zrotation", "Xrotation", "Yrotation"),
+        ) * 3
+        source = Skeleton(
+            names=("Hips", "Spine", "LeftShoulder", "LeftArm"),
+            parents=np.asarray([-1, 0, 1, 2], dtype=np.int32),
+            offsets=np.asarray([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]], dtype=np.float64),
+            channels=channels,
+            end_site_offsets=np.zeros((4, 3), dtype=np.float64),
+            has_end_sites=np.zeros(4, dtype=np.bool_),
+        )
+        target = Skeleton(
+            names=("pelvis", "spine1", "left_collar", "left_shoulder"),
+            parents=np.asarray([-1, 0, 1, 2], dtype=np.int32),
+            offsets=np.asarray([[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]], dtype=np.float64),
+            channels=channels,
+            end_site_offsets=np.zeros((4, 3), dtype=np.float64),
+            has_end_sites=np.zeros(4, dtype=np.bool_),
+        )
+        profile = build_retarget_profile(source, target)
+        mapping = {item.target_name: item.source_name for item in profile.transfers}
+        self.assertEqual(mapping["left_collar"], "LeftShoulder")
+        self.assertEqual(mapping["left_shoulder"], "LeftArm")
+
+    def test_legacy_profile_can_still_be_loaded(self) -> None:
+        profile = build_retarget_profile(source_clip().skeleton, target_skeleton(1.2, True))
+        legacy = profile.to_dict(include_hash=False)
+        legacy["schema_version"] = "1.0.0"
+        legacy.pop("builder")
+        legacy.pop("runtime_plan")
+        for transfer in legacy["transfers"]:
+            transfer.pop("basis_quaternion")
+            transfer.pop("mapping_method")
+        canonical = json.dumps(
+            legacy, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        legacy["profile_sha256"] = hashlib.sha256(canonical).hexdigest()
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "legacy.json"
+            path.write_text(json.dumps(legacy), encoding="utf-8")
+            restored = load_retarget_profile(path)
+        self.assertEqual(restored.schema_version, "1.0.0")
+        runtime = compile_retarget_profile(
+            source_clip().skeleton, target_skeleton(1.2, True), restored
+        )
+        self.assertGreater(len(runtime.target_evaluation_order), 1)
 
 
 if __name__ == "__main__":

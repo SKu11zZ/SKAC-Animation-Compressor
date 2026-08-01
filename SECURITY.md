@@ -19,6 +19,8 @@ The following rules are mandatory:
    same rule.
    FBX and bridge-generated BVH files stay outside version control. A validation report
    does not grant redistribution rights for the asset it describes.
+   Self-contained static SVG quality summaries may be published when they contain only
+   aggregate measurements; active content and external SVG references are rejected.
 4. Automatic-track configuration is frozen once per skeleton. Per-animation tuning is
    rejected.
 5. Artist Gold is a separate track and can never be aggregated with automatic results.

@@ -9,7 +9,7 @@ from typing import Iterator
 
 TEXT_SUFFIXES = {
     ".cff", ".cfg", ".csv", ".html", ".ini", ".json", ".jsonl", ".md",
-    ".py", ".toml", ".tsv", ".txt", ".xml", ".yaml", ".yml",
+    ".py", ".svg", ".toml", ".tsv", ".txt", ".xml", ".yaml", ".yml",
 }
 TEXT_FILENAMES = {".gitattributes", ".gitignore", "LICENSE"}
 ALLOWED_TOP_LEVEL = {
@@ -22,6 +22,7 @@ ALLOWED_TOP_LEVEL = {
     "LICENSE",
     "manifests",
     "PROTOCOL.md",
+    "QUALITY_GATES.md",
     "pyproject.toml",
     "README.md",
     "RELEASE_CHECKLIST.md",
@@ -54,6 +55,10 @@ MAX_PUBLIC_FILE_BYTES = 5 * 1024 * 1024
 ABSOLUTE_PATH_PATTERNS = (
     re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]"),
     re.compile(r"(?:^|[\s\"'])/(?:home|Users|mnt|opt|srv|var)/"),
+)
+UNSAFE_SVG_PATTERN = re.compile(
+    r"<script\b|\bon(?:load|error)\s*=|\b(?:href|src)\s*=\s*[\"'](?:https?:|file:|data:)",
+    re.IGNORECASE,
 )
 
 
@@ -142,6 +147,8 @@ def audit(root: Path, deny_terms: list[str]) -> list[str]:
             continue
 
         folded_text = text.casefold()
+        if suffix == ".svg" and UNSAFE_SVG_PATTERN.search(text):
+            findings.append(f"unsafe active or external SVG content: {relative}")
         for term in deny_terms:
             if _contains_identifier(folded_text, term):
                 findings.append(f"denylisted term in file: {relative}")

@@ -264,35 +264,29 @@ def _scalar_key_indices(track: np.ndarray, threshold: float) -> np.ndarray:
 def _interpolate_rotation_track(
     frame_count: int, indices: np.ndarray, values: np.ndarray
 ) -> np.ndarray:
-    result = np.empty((frame_count, 4), dtype=np.float64)
     if len(indices) == 1:
-        result[:] = values[0]
-        return result
-    for segment in range(len(indices) - 1):
-        start = int(indices[segment])
-        end = int(indices[segment + 1])
-        frames = np.arange(start, end + 1, dtype=np.int64)
-        amount = (frames - start) / (end - start)
-        result[frames] = quaternion_slerp(values[segment], values[segment + 1], amount)
-    return result
+        return np.broadcast_to(values[0], (frame_count, 4)).copy()
+    frames = np.arange(frame_count, dtype=np.int64)
+    segments = np.searchsorted(indices, frames, side="right") - 1
+    segments = np.clip(segments, 0, len(indices) - 2)
+    starts = indices[segments]
+    ends = indices[segments + 1]
+    amount = (frames - starts) / (ends - starts)
+    return quaternion_slerp(values[segments], values[segments + 1], amount)
 
 
 def _interpolate_scalar_track(
     frame_count: int, indices: np.ndarray, values: np.ndarray
 ) -> np.ndarray:
-    result = np.empty(frame_count, dtype=np.float64)
     if len(indices) == 1:
-        result[:] = values[0]
-        return result
-    for segment in range(len(indices) - 1):
-        start = int(indices[segment])
-        end = int(indices[segment + 1])
-        frames = np.arange(start, end + 1, dtype=np.int64)
-        amount = (frames - start) / (end - start)
-        result[frames] = values[segment] + amount * (
-            values[segment + 1] - values[segment]
-        )
-    return result
+        return np.full(frame_count, values[0], dtype=np.float64)
+    frames = np.arange(frame_count, dtype=np.int64)
+    segments = np.searchsorted(indices, frames, side="right") - 1
+    segments = np.clip(segments, 0, len(indices) - 2)
+    starts = indices[segments]
+    ends = indices[segments + 1]
+    amount = (frames - starts) / (ends - starts)
+    return values[segments] + amount * (values[segments + 1] - values[segments])
 
 
 def _encode_rotations(quaternions: np.ndarray, bits: int) -> bytes:

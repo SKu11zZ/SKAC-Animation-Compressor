@@ -162,6 +162,31 @@ class AgentCliTests(unittest.TestCase):
             self.assertTrue(responses[1]["ok"])
             self.assertTrue((workspace / "motion.skac").is_file())
 
+    def test_quality_gate_operation_always_writes_json_and_svg(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            (workspace / "source.bvh").write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            response, status = execute_request(
+                request(
+                    "gate",
+                    "quality_gate",
+                    source="source.bvh",
+                    target="source.bvh",
+                    report="reports/gate.json",
+                    visual="reports/gate.svg",
+                    minimum_core_coverage=0.0,
+                    decode_iterations=1,
+                    pipeline_iterations=1,
+                    frame_samples=10,
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(response["ok"])
+            self.assertTrue(response["result"]["passed"])
+            self.assertTrue((workspace / "reports" / "gate.json").is_file())
+            self.assertTrue((workspace / "reports" / "gate.svg").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

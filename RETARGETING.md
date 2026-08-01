@@ -1,8 +1,8 @@
-# Frozen multi-target retargeting
+# Frozen multi-target Codec playback
 
-The public retargeter decodes one source-bound `.skac` animation and applies a frozen
-source-to-target profile. A target character is supplied as a BVH template; its
-skeleton, channel order, rest offsets, and end sites are preserved in the output.
+The public runtime decodes one source-bound `.skac` animation and applies a frozen,
+precompiled source-to-target profile. A target character is supplied as a BVH template;
+its skeleton, channel order, rest offsets, and end sites are preserved in the output.
 
 ```text
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
@@ -19,35 +19,44 @@ SHA-256 signature differs from the frozen profile.
 The builder performs these deterministic steps:
 
 1. remove namespaces and match exact public joint names;
-2. match common Mixamo, engine-humanoid, and SMPL-style semantic aliases;
-3. pair different-length spine chains by normalized chain position;
-4. preserve identity basis transfer when source and target joint names match;
-5. otherwise derive a rest-direction basis change from the two skeletons;
-6. compute root-translation scale from the public SAN-style head and leg chain length;
-7. record every mapping, basis matrix, option, name, and skeleton signature in JSON;
-8. hash the canonical profile so later edits cannot be mistaken for the frozen setup.
+2. identify public naming conventions before resolving ambiguous shoulder names;
+3. match common Mixamo, engine-humanoid, and SMPL-style semantic aliases;
+4. pair different-length spine chains by normalized chain position;
+5. preserve identity basis transfer when source and target joint names match;
+6. otherwise derive a rest-direction basis change from the two skeletons;
+7. compute root-translation scale from the public SAN-style head and leg chain length;
+8. compile source/target evaluation orders and basis quaternions for playback;
+9. record core-joint coverage and hash the canonical profile.
 
 Target-only joints stay at their target rest rotation and inherit their animated parent
 transform. This is appropriate for structural and attachment joints that have no source
 counterpart; it does not synthesize independent cloth, hair, facial, or accessory
 motion.
 
-## Runtime transfer
+## Runtime playback
 
-Mapped source rotations are first accumulated globally. Each is expressed in the
-frozen source/target rest basis, then converted back into the target hierarchy's local
-rotation. Root motion is scaled once and written only to the target root, avoiding a
-double rotation when an engine skeleton has both Root and Pelvis joints.
+Profile 2.0 is a small execution plan. Mapping, naming decisions, ancestor discovery,
+rest-basis conversion, and target parent lookup are completed once by the Builder.
+Playback uses quaternion products directly, evaluates only required hierarchy joints,
+reuses scratch buffers, and writes into caller-owned output arrays. It does not build
+dictionaries, convert every joint to matrices, run IK, or allocate a new pose per frame.
 
-The optional `--contact-lock` profile flag enables an experimental root correction from
-detected foot contacts. It is off by default because the current correction does not
-yet pass the no-regression gate on every public target. It must not be enabled in a
-published automatic-track result without reporting the option in the frozen profile.
+The same compiled runtime is reused for every animation with the pinned source skeleton.
+Its scratch state is intentionally owned by one playback instance; applications use a
+separate runtime instance per concurrently evaluated character.
+
+The slower matrix path remains only as a quality-gate oracle. Version 1 profiles can
+still be loaded and compiled, while newly built profiles use schema 2.0.
+
+The optional legacy contact correction is not accepted by the real-time compiled plan.
+It needs frame history and global-position passes, so it conflicts with this milestone's
+hot-path budget. A future stateful implementation must pass the same performance gate
+before it can enter the playback path.
 
 ## Current boundary
 
-This milestone supports deterministic BVH targets, semantic mapping, rest-basis
-alignment, hierarchy conversion, body-scale compensation, and hash-pinned profiles.
-Production-quality twist distribution, end-effector IK, constraint limits, robust foot
-locking, and FBX target assets remain later work. No clip-specific adjustment is
-allowed in the automatic track.
+This milestone favors predictable compressed playback over an expensive offline solve.
+It supports deterministic BVH targets, naming-aware semantic mapping, rest-basis
+alignment, hierarchy conversion, body-scale compensation, hash-pinned plans, and a
+zero-extra-allocation frame API. It deliberately does not add per-frame IK or general
+constraint solving. No clip-specific adjustment is allowed in the automatic track.

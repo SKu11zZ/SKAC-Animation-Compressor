@@ -77,7 +77,9 @@ Protocol v1 operations:
 - `inspect`: read `.skac` metadata without creating an asset;
 - `decode`: `.skac` to the source BVH skeleton, or to a target skeleton when both
   `target` and `profile` are supplied;
-- `profile`: freeze one source-to-target skeleton profile.
+- `profile`: freeze one source-to-target skeleton profile;
+- `quality_gate`: run the frozen quality/performance checks and always write JSON plus
+  a self-contained SVG report.
 
 The exact required and optional fields are returned by `capabilities`. Unknown fields
 are rejected so a misspelled option cannot silently change a run.
@@ -114,7 +116,8 @@ skac-agent run --workspace ./job --request ./encode-request.json --pretty
 
 - `protocol`：目前是 `skac.agent.v1`；
 - `request_id`：调用方自己的任务 ID，响应会原样带回；
-- `operation`：`encode`、`inspect`、`decode` 或 `profile`；
+- `operation`：`encode`、`inspect`、`decode`、`profile` 或 `quality_gate`；后者会
+  同时生成 JSON 和 SVG 门槛报告；
 - `arguments`：该操作需要的路径和选项。
 
 退出码 `0` 表示成功，`2` 表示请求本身不合法，`3` 表示请求合法但执行失败。

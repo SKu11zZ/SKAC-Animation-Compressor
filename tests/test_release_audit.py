@@ -46,6 +46,23 @@ class ReleaseAuditTests(unittest.TestCase):
                 audit(root, ["restricted-token"]),
             )
 
+    def test_accepts_static_svg_and_rejects_active_svg(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            reports = root / "reports"
+            reports.mkdir()
+            report = reports / "report.svg"
+            report.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>',
+                encoding="utf-8",
+            )
+            self.assertEqual(audit(root, []), [])
+            report.write_text("<svg><script>alert(1)</script></svg>", encoding="utf-8")
+            self.assertIn(
+                "unsafe active or external SVG content: reports/report.svg",
+                audit(root, []),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,6 +20,7 @@ public baseline.
 
 - `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
 - `skac-agent`: a versioned JSON/JSONL interface for other Agents and automation;
+- `QUALITY_GATES.md`: frozen reconstruction and playback-performance limits;
 - `skac_codec.fbx`: an optional experimental Blender bridge for FBX characters;
 - `skac_public_core`: a deterministic NumPy-only cross-skeleton baseline;
 - `skac_benchmark`: manifest loading, validation, metrics, and the command-line runner;
@@ -49,6 +50,7 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+python -m skac_codec quality-gate source.bvh target.bvh --output reports/gate.json --visual reports/gate.svg
 skac-agent capabilities --pretty
 skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
@@ -88,22 +90,23 @@ Every encode command immediately decodes the produced bytes and prints its rotat
 translation, compression-ratio, and bits-per-joint-per-frame measurements.
 
 The same `.skac` file can also target multiple BVH skeletons through hash-pinned,
-one-time profiles. The current retargeter handles semantic aliases, unequal spine
-chains, rest-basis conversion, extra engine roots, and body-scale compensation. See
-`FORMAT.md` and `RETARGETING.md` for the two contracts.
+one-time profiles. Profile 2.0 recognizes naming conventions, compiles hierarchy work
+and basis quaternions ahead of playback, and exposes a reusable frame runtime with
+caller-owned output buffers. See `FORMAT.md`, `RETARGETING.md`, and `QUALITY_GATES.md`.
 
 This is still a deterministic reference implementation. Production twist
 distribution, end-effector IK, and robust contact locking remain later milestones. An
 experimental Blender FBX bridge is included, but it has not completed a real FBX round
 trip on this development machine; see `FBX.md` before using it.
 
-The `reports` directory contains five aggregate records:
+The `reports` directory contains six aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - a one-file, two-target public retargeting smoke test;
 - an official SAN public-test reproduction;
 - a simple public rotation-copy pipeline trial;
-- a full SAN run using `skac_public_core`.
+- a full SAN run using `skac_public_core`;
+- a Profile 2.0 Codec-runtime quality gate with a matching SVG summary.
 
 The reports keep the scoring definitions beside the numbers. Raw motions and generated
 predictions are not included.
@@ -145,6 +148,7 @@ downloaded materials keep their own licenses and terms.
 
 - `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
 - `skac-agent`：给其他 Agent 和自动化程序调用的版本化 JSON/JSONL 接口；
+- `QUALITY_GATES.md`：固定的还原质量和播放性能门槛；
 - `skac_codec.fbx`：通过 Blender 处理 FBX 角色的可选实验适配层；
 - `skac_public_core`：只依赖 NumPy 的确定性跨骨骼基线；
 - `skac_benchmark`：清单读取、合法性检查、指标和命令行入口；
@@ -172,6 +176,7 @@ python -m skac_codec inspect motion.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec decode motion.skac --target target.bvh --profile target.skac-profile.json -o target-animation.bvh
+python -m skac_codec quality-gate source.bvh target.bvh --output reports/gate.json --visual reports/gate.svg
 skac-agent capabilities --pretty
 skac-agent run --workspace ./job --request ./request.json --pretty
 python -m skac_codec fbx-inject target.fbx target-animation.bvh -o animated-target.fbx --blender BLENDER
@@ -203,20 +208,22 @@ python tools/audit_release.py .
 编码都会立刻从生成的字节解码一次，并输出旋转误差、位移误差、压缩比和每关节每帧位数。
 
 同一个 `.skac` 现在也能通过一次性冻结并锁定哈希的 Profile 输出到多个 BVH 目标骨架。
-当前重定向器能处理语义别名、不同长度的脊柱链、参考姿态基变换、额外引擎 Root 和身体
-比例补偿。两部分约定分别见 `FORMAT.md` 和 `RETARGETING.md`。
+Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换四元数；逐帧运行时复用缓冲区，
+不再临时做骨架匹配和矩阵转换。具体见 `FORMAT.md`、`RETARGETING.md` 和
+`QUALITY_GATES.md`。
 
 这仍然是确定性参考实现。生产级 Twist 分配、末端 IK 和稳定接触锁定仍是后续里程碑。
 仓库已经包含实验性的 Blender FBX 适配层，但这台开发机还没有完成真实 FBX 往返验证；
 使用前请先看 `FBX.md`。
 
-`reports` 里目前有五份汇总记录：
+`reports` 里目前有六份汇总记录：
 
 - 一份使用公开 SAN BVH 的 Codec 1.0 往返测试；
 - 一份“单文件、双目标”的公开重定向测试；
 - SAN 官方公开测试复现；
 - 一个简单的公开旋转复制管线试验；
-- 使用 `skac_public_core` 跑完的 SAN 测试。
+- 使用 `skac_public_core` 跑完的 SAN 测试；
+- Profile 2.0 Codec 播放门槛，以及对应的 SVG 可视化摘要。
 
 每份报告都会把数字和对应口径放在一起。原始动作和生成结果不会随仓库发布。
 

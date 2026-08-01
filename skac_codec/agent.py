@@ -5,12 +5,19 @@ import json
 import os
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from .bvh import read_bvh, write_bvh
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
+from .quality import (
+    QualityThresholds,
+    run_quality_gate,
+    write_quality_report_json,
+    write_quality_report_svg,
+)
 from .retarget import (
     build_retarget_profile,
     load_retarget_profile,
@@ -53,6 +60,25 @@ def capabilities() -> dict[str, Any]:
             "profile": {
                 "required": ["source", "target", "output"],
                 "optional": ["overwrite", "up_axis", "contact_lock"],
+            },
+            "quality_gate": {
+                "required": ["source", "target", "report", "visual"],
+                "optional": [
+                    "overwrite",
+                    "quality",
+                    "rotation_bits",
+                    "translation_bits",
+                    "rotation_error_degrees",
+                    "translation_error_fraction",
+                    "zlib_level",
+                    "minimum_core_coverage",
+                    "maximum_retarget_frame_ms",
+                    "minimum_decode_realtime_factor",
+                    "minimum_pipeline_realtime_factor",
+                    "decode_iterations",
+                    "pipeline_iterations",
+                    "frame_samples",
+                ],
             },
         },
         "exit_codes": {
@@ -282,12 +308,114 @@ def _profile(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             "bytes": output.stat().st_size,
         },
         "profile_sha256": profile.signature(),
+        "profile_schema_version": profile.schema_version,
         "source_skeleton_sha256": profile.source_skeleton_sha256,
         "target_skeleton_sha256": profile.target_skeleton_sha256,
         "mapped_joint_count": len(profile.transfers),
+        "shared_core_joint_count": profile.shared_core_joint_count,
+        "mapped_core_joint_count": profile.mapped_core_joint_count,
+        "core_coverage": profile.core_coverage,
+        "source_runtime_joint_count": len(profile.source_evaluation_order),
+        "target_runtime_joint_count": len(profile.target_evaluation_order),
         "root_translation_scale": profile.root_translation_scale,
         "contact_lock": profile.contact_lock,
         "foot_pair_count": len(profile.foot_pairs),
+    }
+
+
+def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    optional = {
+        "overwrite",
+        "quality",
+        "rotation_bits",
+        "translation_bits",
+        "rotation_error_degrees",
+        "translation_error_fraction",
+        "zlib_level",
+        "minimum_core_coverage",
+        "maximum_retarget_frame_ms",
+        "minimum_decode_realtime_factor",
+        "minimum_pipeline_realtime_factor",
+        "decode_iterations",
+        "pipeline_iterations",
+        "frame_samples",
+    }
+    _strict_fields(
+        arguments,
+        required={"source", "target", "report", "visual"},
+        optional=optional,
+        label="arguments",
+    )
+    source_path = _relative_path(
+        workspace, arguments["source"], "arguments.source", input_file=True
+    )
+    target_path = _relative_path(
+        workspace, arguments["target"], "arguments.target", input_file=True
+    )
+    overwrite = _boolean(arguments.get("overwrite", False), "arguments.overwrite")
+    outputs: dict[str, Path] = {}
+    for name in ("report", "visual"):
+        output = _relative_path(
+            workspace, arguments[name], f"arguments.{name}", input_file=False
+        )
+        if output.exists() and not overwrite:
+            raise AgentRequestError(f"arguments.{name} already exists; set overwrite to true")
+        if output.exists() and not output.is_file():
+            raise AgentRequestError(f"arguments.{name} is not a regular file")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        outputs[name] = output
+    if outputs["report"] == outputs["visual"]:
+        raise AgentRequestError("arguments.report and arguments.visual must be different files")
+
+    settings = _codec_settings(arguments)
+    thresholds = QualityThresholds.for_settings(settings)
+
+    def floating(name: str, fallback: float) -> float:
+        return (
+            float(_number(arguments[name], f"arguments.{name}", float))
+            if name in arguments
+            else fallback
+        )
+
+    def integer(name: str, fallback: int) -> int:
+        return (
+            int(_number(arguments[name], f"arguments.{name}", int))
+            if name in arguments
+            else fallback
+        )
+
+    thresholds = replace(
+        thresholds,
+        minimum_core_coverage=floating(
+            "minimum_core_coverage", thresholds.minimum_core_coverage
+        ),
+        maximum_retarget_frame_ms_p95=floating(
+            "maximum_retarget_frame_ms", thresholds.maximum_retarget_frame_ms_p95
+        ),
+        minimum_decode_realtime_factor=floating(
+            "minimum_decode_realtime_factor", thresholds.minimum_decode_realtime_factor
+        ),
+        minimum_pipeline_realtime_factor=floating(
+            "minimum_pipeline_realtime_factor", thresholds.minimum_pipeline_realtime_factor
+        ),
+    )
+    report = run_quality_gate(
+        read_bvh(source_path),
+        read_bvh(target_path).skeleton,
+        settings=settings,
+        thresholds=thresholds,
+        decode_iterations=integer("decode_iterations", 5),
+        pipeline_iterations=integer("pipeline_iterations", 3),
+        frame_samples=integer("frame_samples", 300),
+    )
+    write_quality_report_json(outputs["report"], report)
+    write_quality_report_svg(outputs["visual"], report)
+    return {
+        "passed": report["passed"],
+        "failed_checks": [item["id"] for item in report["checks"] if not item["passed"]],
+        "report": _display_path(workspace, outputs["report"]),
+        "visual": _display_path(workspace, outputs["visual"]),
+        "performance": report["performance"],
     }
 
 
@@ -296,6 +424,7 @@ _OPERATIONS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "inspect": _inspect,
     "decode": _decode,
     "profile": _profile,
+    "quality_gate": _quality_gate,
 }
 
 

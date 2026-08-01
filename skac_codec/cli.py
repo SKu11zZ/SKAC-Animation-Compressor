@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
 
@@ -9,6 +10,12 @@ from .bvh import read_bvh, write_bvh
 from .fbx import extract_fbx_to_bvh, inject_bvh_into_fbx, validate_fbx
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
+from .quality import (
+    QualityThresholds,
+    run_quality_gate,
+    write_quality_report_json,
+    write_quality_report_svg,
+)
 from .retarget import (
     build_retarget_profile,
     load_retarget_profile,
@@ -116,10 +123,16 @@ def _profile(args: argparse.Namespace) -> int:
     _write_json(
         {
             "command": "profile",
+            "profile_schema_version": profile.schema_version,
             "profile_sha256": profile.signature(),
             "source_skeleton_sha256": profile.source_skeleton_sha256,
             "target_skeleton_sha256": profile.target_skeleton_sha256,
             "mapped_joint_count": len(profile.transfers),
+            "shared_core_joint_count": profile.shared_core_joint_count,
+            "mapped_core_joint_count": profile.mapped_core_joint_count,
+            "core_coverage": profile.core_coverage,
+            "source_runtime_joint_count": len(profile.source_evaluation_order),
+            "target_runtime_joint_count": len(profile.target_evaluation_order),
             "root_translation_scale": profile.root_translation_scale,
             "contact_lock": profile.contact_lock,
             "foot_pair_count": len(profile.foot_pairs),
@@ -164,6 +177,44 @@ def _fbx_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _quality_gate(args: argparse.Namespace) -> int:
+    source = read_bvh(args.source)
+    target_skeleton = read_bvh(args.target).skeleton
+    settings = _settings(args)
+    thresholds = QualityThresholds.for_settings(settings)
+    thresholds = replace(
+        thresholds,
+        minimum_core_coverage=args.minimum_core_coverage,
+        maximum_retarget_frame_ms_p95=args.maximum_retarget_frame_ms,
+        minimum_decode_realtime_factor=args.minimum_decode_realtime_factor,
+        minimum_pipeline_realtime_factor=args.minimum_pipeline_realtime_factor,
+    )
+    report = run_quality_gate(
+        source,
+        target_skeleton,
+        settings=settings,
+        thresholds=thresholds,
+        decode_iterations=args.decode_iterations,
+        pipeline_iterations=args.pipeline_iterations,
+        frame_samples=args.frame_samples,
+    )
+    write_quality_report_json(args.output, report)
+    write_quality_report_svg(args.visual, report)
+    _write_json(
+        {
+            "command": "quality-gate",
+            "passed": report["passed"],
+            "report": str(args.output),
+            "visual": str(args.visual),
+            "failed_checks": [
+                item["id"] for item in report["checks"] if not item["passed"]
+            ],
+            "performance": report["performance"],
+        }
+    )
+    return 0 if report["passed"] else 4
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="skac", description="Encode, decode, and inspect SKAC animation files."
@@ -204,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
     profile_parser.add_argument(
         "--contact-lock",
         action="store_true",
-        help="enable the experimental foot-contact root correction",
+        help="legacy option; rejected by real-time Profile 2.0",
     )
     profile_parser.set_defaults(handler=_profile)
 
@@ -236,6 +287,35 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--blender", type=Path)
     validate_parser.add_argument("--timeout", type=int, default=300)
     validate_parser.set_defaults(handler=_fbx_validate)
+
+    quality_parser = subparsers.add_parser(
+        "quality-gate",
+        help="gate Codec reconstruction and compiled retarget playback quality/performance",
+    )
+    quality_parser.add_argument("source", type=Path, help="public source BVH animation")
+    quality_parser.add_argument("target", type=Path, help="public target BVH template")
+    quality_parser.add_argument("--output", "-o", type=Path, required=True)
+    quality_parser.add_argument("--visual", type=Path, required=True)
+    quality_parser.add_argument(
+        "--quality", choices=("low", "medium", "high"), default="high"
+    )
+    quality_parser.add_argument("--rotation-bits", type=int)
+    quality_parser.add_argument("--translation-bits", type=int)
+    quality_parser.add_argument("--rotation-error-degrees", type=float)
+    quality_parser.add_argument("--translation-error-fraction", type=float)
+    quality_parser.add_argument("--zlib-level", type=int)
+    quality_parser.add_argument("--minimum-core-coverage", type=float, default=1.0)
+    quality_parser.add_argument("--maximum-retarget-frame-ms", type=float, default=4.0)
+    quality_parser.add_argument(
+        "--minimum-decode-realtime-factor", type=float, default=10.0
+    )
+    quality_parser.add_argument(
+        "--minimum-pipeline-realtime-factor", type=float, default=5.0
+    )
+    quality_parser.add_argument("--decode-iterations", type=int, default=5)
+    quality_parser.add_argument("--pipeline-iterations", type=int, default=3)
+    quality_parser.add_argument("--frame-samples", type=int, default=300)
+    quality_parser.set_defaults(handler=_quality_gate)
     return parser
 
 

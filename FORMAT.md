@@ -65,6 +65,10 @@ spherically interpolates the omitted frames. The current low, medium, and high p
 use 10, 13, or 16 bits per stored component with key-reduction limits of 1.0, 0.25,
 or 0.05 degrees respectively.
 
+The reference decoder resolves all interpolation segments for a track in one vectorized
+pass. This keeps the file format unchanged while avoiding a small NumPy call for every
+keyframe interval.
+
 ## Translation payload
 
 Only position channels declared by the source skeleton are stored. Each scalar track is

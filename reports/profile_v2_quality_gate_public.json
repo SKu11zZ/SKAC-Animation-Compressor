@@ -1,0 +1,178 @@
+{
+  "checks": [
+    {
+      "actual": 0.05017868416688124,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "codec_rotation",
+      "limit": 0.0625,
+      "passed": true,
+      "unit": "degrees"
+    },
+    {
+      "actual": 0.0005301212074830039,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "codec_global_position",
+      "limit": 0.001,
+      "passed": true,
+      "unit": "skeleton_height_fraction"
+    },
+    {
+      "actual": 1.0,
+      "category": "quality",
+      "comparator": ">=",
+      "id": "profile_core_coverage",
+      "limit": 1.0,
+      "passed": true,
+      "unit": "ratio"
+    },
+    {
+      "actual": 3.4150945850063755e-06,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "runtime_rotation_equivalence",
+      "limit": 1e-05,
+      "passed": true,
+      "unit": "degrees"
+    },
+    {
+      "actual": 2.5312304978963e-14,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "runtime_global_equivalence",
+      "limit": 1e-09,
+      "passed": true,
+      "unit": "skeleton_height_fraction"
+    },
+    {
+      "actual": 2.220446049250313e-16,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "runtime_quaternion_norm",
+      "limit": 1e-10,
+      "passed": true,
+      "unit": "absolute"
+    },
+    {
+      "actual": 1.313858,
+      "category": "performance",
+      "comparator": "<=",
+      "id": "retarget_frame_p95",
+      "limit": 4.0,
+      "passed": true,
+      "unit": "milliseconds"
+    },
+    {
+      "actual": 77.38877796719224,
+      "category": "performance",
+      "comparator": ">=",
+      "id": "decode_realtime_factor",
+      "limit": 10.0,
+      "passed": true,
+      "unit": "x_realtime"
+    },
+    {
+      "actual": 44.0072723706495,
+      "category": "performance",
+      "comparator": ">=",
+      "id": "pipeline_realtime_factor",
+      "limit": 5.0,
+      "passed": true,
+      "unit": "x_realtime"
+    }
+  ],
+  "codec": {
+    "encoded_bytes": 14653,
+    "global_position_error_max": 0.09931974109077985,
+    "global_position_error_max_height_fraction": 0.0005301212074830039,
+    "global_position_error_mean": 0.0235957928673808,
+    "quality": "high",
+    "root_translation_error_max": 0.0001402797464399461,
+    "root_translation_error_mean": 7.37440338599349e-06,
+    "rotation_error_degrees_max": 0.05017868416688124,
+    "rotation_error_degrees_mean": 0.008991455809922083,
+    "translation_error_max": 0.0001402797464399461,
+    "translation_error_mean": 1.084471086175513e-07
+  },
+  "environment": {
+    "numpy_version": "2.3.5",
+    "platform": "win32",
+    "python_version": "3.12.13"
+  },
+  "passed": true,
+  "performance": {
+    "decode_clip_ms_median": 15.0757,
+    "decode_iterations": 7,
+    "decode_realtime_factor": 77.38877796719224,
+    "frame_batch_size": 10,
+    "frame_samples": 500,
+    "pipeline_clip_ms_median": 26.5113,
+    "pipeline_iterations": 5,
+    "pipeline_realtime_factor": 44.0072723706495,
+    "retarget_fps_at_p95": 761.1172592471942,
+    "retarget_frame_ms_p50": 0.863945,
+    "retarget_frame_ms_p95": 1.313858
+  },
+  "profile": {
+    "compile_ms": 0.5097,
+    "core_coverage": 1.0,
+    "mapped_core_joint_count": 20,
+    "mapped_joint_count": 60,
+    "profile_sha256": "77aeb65ec65273390ea26cf02a1337b36f497f500363fda6fcee5f78c6f7f1e8",
+    "runtime_mode": "compiled_quaternion_frame_v2",
+    "schema_version": "2.0.0",
+    "shared_core_joint_count": 20,
+    "source_runtime_joint_count": 60,
+    "target_runtime_joint_count": 60
+  },
+  "runtime_diagnostics": {
+    "contact_frames": 0,
+    "core_coverage": 1.0,
+    "mapped_joint_count": 60,
+    "profile_schema_version": "2.0.0",
+    "profile_sha256": "77aeb65ec65273390ea26cf02a1337b36f497f500363fda6fcee5f78c6f7f1e8",
+    "root_correction_max": 0.0,
+    "root_translation_scale": 0.8892999478380933,
+    "runtime_mode": "compiled_quaternion_frame_v2",
+    "source_runtime_joint_count": 60,
+    "target_joint_count": 60,
+    "target_runtime_joint_count": 60
+  },
+  "runtime_equivalence": {
+    "global_position_error_max": 4.217356960374573e-12,
+    "global_position_error_max_height_fraction": 2.5312304978963e-14,
+    "quaternion_norm_error_max": 2.220446049250313e-16,
+    "rotation_error_degrees_max": 3.4150945850063755e-06
+  },
+  "schema": "skac.quality_gate",
+  "schema_version": "1.0.0",
+  "scope": {
+    "pipeline": "bvh_encode_decode_then_compiled_target_playback",
+    "quality_claim": "codec reconstruction, compiled-runtime equivalence, and shared-core mapping coverage; not perceptual target-motion ground truth",
+    "retarget_ground_truth_available": false
+  },
+  "source": {
+    "duration_seconds": 1.150023,
+    "frame_count": 70,
+    "frame_time": 0.016667,
+    "joint_count": 68,
+    "playback_budget_seconds": 1.16669,
+    "skeleton_sha256": "8b41d17a82228a0767e0c596ab416781b72cdab3e8f2545f0e27ba1220f26a4b"
+  },
+  "target": {
+    "joint_count": 60,
+    "skeleton_sha256": "78bbbe0844e1335ac8f332293ff6224a5dab2e4432217c2d48bb363befcac5f5"
+  },
+  "thresholds": {
+    "max_codec_global_position_fraction": 0.001,
+    "max_codec_rotation_degrees": 0.0625,
+    "max_quaternion_norm_error": 1e-10,
+    "max_runtime_global_position_fraction": 1e-09,
+    "max_runtime_rotation_degrees": 1e-05,
+    "maximum_retarget_frame_ms_p95": 4.0,
+    "minimum_core_coverage": 1.0,
+    "minimum_decode_realtime_factor": 10.0,
+    "minimum_pipeline_realtime_factor": 5.0
+  }
+}

@@ -13,9 +13,10 @@ root and review their output before committing or pushing.
 ## Content boundary
 
 - [ ] Include only original source, tests, documentation, templates, and aggregate reports.
-- [ ] Exclude datasets, weights, character assets, motions, generated motions, archives, binaries, and media.
+- [ ] Exclude datasets, weights, character assets, motions, generated motions, archives, binaries, and rendered media. Static aggregate-report SVG is allowed.
 - [ ] Exclude machine-local paths, environment dumps, command histories, and raw logs.
 - [ ] Confirm every report contains aggregate public results only.
+- [ ] Confirm every committed quality-gate JSON has a matching static SVG and passes its frozen thresholds.
 - [ ] Supply the private release denylist out of band; never commit the denylist itself.
 
 ## Verification

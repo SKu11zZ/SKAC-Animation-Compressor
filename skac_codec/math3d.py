@@ -44,6 +44,14 @@ def quaternion_multiply(left: ArrayLike, right: ArrayLike) -> FloatArray:
     )
 
 
+def quaternion_conjugate(value: ArrayLike) -> FloatArray:
+    result = np.asarray(value, dtype=np.float64).copy()
+    if result.shape[-1] != 4:
+        raise ValueError("quaternions require a final dimension of four")
+    result[..., 1:] *= -1.0
+    return result
+
+
 def axis_angle_quaternion(axis: str, angle_radians: ArrayLike) -> FloatArray:
     angles = np.asarray(angle_radians, dtype=np.float64)
     half = angles * 0.5
