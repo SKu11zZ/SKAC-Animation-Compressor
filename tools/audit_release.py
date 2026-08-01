@@ -17,6 +17,7 @@ ALLOWED_TOP_LEVEL = {
     ".gitattributes",
     ".gitignore",
     "AGENT_CLI.md",
+    "assets",
     "CITATION.cff",
     "FBX.md",
     "FORMAT.md",

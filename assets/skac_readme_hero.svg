@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="460" viewBox="0 0 1400 460" role="img" aria-labelledby="title description">
+  <title id="title">SKAC Animation Codec</title>
+  <desc id="description">A bilingual technical banner showing motion tracks compressed into a compact stream and decoded for real-time playback.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111d"/>
+      <stop offset="0.62" stop-color="#0b1421"/>
+      <stop offset="1" stop-color="#101827"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5cf2c2"/>
+      <stop offset="1" stop-color="#79a8ff"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#8ca0bb" stroke-opacity="0.06"/>
+    </pattern>
+    <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <style>
+      text{font-family:Inter,"Segoe UI","Noto Sans SC","Microsoft YaHei",Arial,sans-serif}
+      .eyebrow{font-size:14px;font-weight:700;letter-spacing:3px;fill:#80a0bd}
+      .brand{font-size:74px;font-weight:820;letter-spacing:-2px;fill:url(#brand)}
+      .headline{font-size:28px;font-weight:680;fill:#f5f8fc}
+      .subhead{font-size:17px;font-weight:480;fill:#aab9ca}
+      .micro{font-size:11px;font-weight:720;letter-spacing:1.4px;fill:#7f96ad}
+      .value{font-size:25px;font-weight:760;fill:#f5f8fc}
+      .label{font-size:11px;font-weight:650;letter-spacing:.7px;fill:#91a6bb}
+      .node{font-size:11px;font-weight:750;letter-spacing:1px;fill:#07111d}
+    </style>
+  </defs>
+
+  <rect width="1400" height="460" rx="18" fill="url(#background)"/>
+  <rect width="1400" height="460" rx="18" fill="url(#grid)"/>
+  <path d="M0 365C240 300 390 420 650 355S1090 285 1400 350V460H0Z" fill="#58efc0" opacity="0.035"/>
+
+  <rect x="42" y="43" width="5" height="282" rx="2.5" fill="url(#brand)"/>
+  <circle cx="44.5" cy="48" r="9" fill="#5cf2c2" opacity="0.22" filter="url(#soft-glow)"/>
+  <circle cx="44.5" cy="48" r="4" fill="#5cf2c2"/>
+  <circle cx="44.5" cy="185" r="4" fill="#79a8ff"/>
+  <circle cx="44.5" cy="320" r="4" fill="#ffca6a"/>
+
+  <text x="78" y="70" class="eyebrow">ANIMATION CODEC · RUNTIME PLAYBACK</text>
+  <text x="74" y="148" class="brand">SKAC</text>
+  <text x="78" y="198" class="headline">压得更小，播得更快。</text>
+  <text x="78" y="231" class="headline">Compact animation. Real-time decode.</text>
+  <text x="78" y="272" class="subhead">一份压缩动画，回到原角色，或通过冻结 Profile 播放到其他公开骨骼。</text>
+  <text x="78" y="300" class="subhead">One compact clip, reusable playback paths.</text>
+
+  <rect x="1130" y="42" width="108" height="28" rx="14" fill="#5cf2c2" fill-opacity="0.11" stroke="#5cf2c2" stroke-opacity="0.5"/>
+  <text x="1184" y="61" text-anchor="middle" class="micro" fill="#7ff4cf">FORMAT 1.0</text>
+  <rect x="1250" y="42" width="112" height="28" rx="14" fill="#79a8ff" fill-opacity="0.11" stroke="#79a8ff" stroke-opacity="0.5"/>
+  <text x="1306" y="61" text-anchor="middle" class="micro" fill="#9ebdff">RUNTIME BETA</text>
+
+  <text x="810" y="102" class="micro">MOTION TRACKS / 动画轨道</text>
+  <text x="1166" y="102" class="micro">PACKED STREAM / 压缩数据</text>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M812 142C864 101 921 188 976 145S1061 109 1118 149" stroke="#5cf2c2" stroke-width="3"/>
+    <path d="M812 185C865 224 920 149 976 190S1064 215 1118 184" stroke="#79a8ff" stroke-width="3"/>
+    <path d="M812 228C867 180 920 262 978 224S1060 188 1118 218" stroke="#ffca6a" stroke-width="3"/>
+    <path d="M812 271C863 301 923 237 980 278S1065 297 1118 263" stroke="#af86ff" stroke-width="3"/>
+  </g>
+  <g fill="#07111d" stroke-width="3">
+    <circle cx="835" cy="130" r="5" stroke="#5cf2c2"/><circle cx="906" cy="165" r="5" stroke="#5cf2c2"/><circle cx="980" cy="143" r="5" stroke="#5cf2c2"/><circle cx="1063" cy="119" r="5" stroke="#5cf2c2"/>
+    <circle cx="845" cy="200" r="5" stroke="#79a8ff"/><circle cx="920" cy="157" r="5" stroke="#79a8ff"/><circle cx="1001" cy="202" r="5" stroke="#79a8ff"/><circle cx="1080" cy="205" r="5" stroke="#79a8ff"/>
+    <circle cx="831" cy="216" r="5" stroke="#ffca6a"/><circle cx="918" cy="253" r="5" stroke="#ffca6a"/><circle cx="998" cy="212" r="5" stroke="#ffca6a"/><circle cx="1071" cy="198" r="5" stroke="#ffca6a"/>
+    <circle cx="853" cy="287" r="5" stroke="#af86ff"/><circle cx="929" cy="244" r="5" stroke="#af86ff"/><circle cx="1004" cy="289" r="5" stroke="#af86ff"/><circle cx="1081" cy="285" r="5" stroke="#af86ff"/>
+  </g>
+
+  <path d="M1118 149L1154 181M1118 184L1154 194M1118 218L1154 207M1118 263L1154 220" fill="none" stroke="#8398ad" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <rect x="1154" y="160" width="124" height="82" rx="12" fill="#d9fff3"/>
+  <rect x="1167" y="175" width="98" height="9" rx="4.5" fill="#0c9b76" opacity="0.28"/>
+  <rect x="1167" y="192" width="72" height="9" rx="4.5" fill="#0c9b76" opacity="0.5"/>
+  <rect x="1167" y="209" width="87" height="9" rx="4.5" fill="#0c9b76" opacity="0.72"/>
+  <text x="1216" y="233" text-anchor="middle" class="node">.SKAC</text>
+  <path d="M1278 201H1325" stroke="#5cf2c2" stroke-width="3" stroke-linecap="round"/>
+  <path d="M1315 190L1326 201L1315 212" fill="none" stroke="#5cf2c2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1290" y="232" class="micro">PLAY</text>
+
+  <line x1="78" y1="348" x2="1322" y2="348" stroke="#8295aa" stroke-opacity="0.22"/>
+  <g>
+    <text x="78" y="389" class="value">5.95×</text>
+    <text x="78" y="414" class="label">SMALLER VS FLOAT32 CHANNELS / 相对通道缩小</text>
+    <line x1="448" y1="370" x2="448" y2="422" stroke="#8295aa" stroke-opacity="0.22"/>
+    <text x="478" y="389" class="value">70.74×</text>
+    <text x="478" y="414" class="label">WHOLE-CLIP DECODE / 整段解码实时倍速</text>
+    <line x1="846" y1="370" x2="846" y2="422" stroke="#8295aa" stroke-opacity="0.22"/>
+    <text x="876" y="389" class="value">0.05145°</text>
+    <text x="876" y="414" class="label">MAX ROT. ERROR / 最大旋转误差</text>
+  </g>
+  <text x="1322" y="442" text-anchor="end" class="micro">PUBLIC · REPRODUCIBLE · SOURCE AVAILABLE</text>
+</svg>

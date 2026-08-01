@@ -1,6 +1,12 @@
-# SKAC Academic Benchmark
+<p align="center">
+  <img src="assets/skac_readme_hero.svg" width="100%" alt="SKAC Animation Codec — compact animation and real-time decode">
+</p>
 
-[English](#english) · [中文](#chinese)
+<p align="center">
+  <a href="#english">English</a> · <a href="#chinese">中文</a> ·
+  <a href="FORMAT.md">Format 1.0</a> · <a href="RUNTIME_BETA.md">Runtime Beta</a> ·
+  <a href="QUALITY_GATES.md">Quality Gates</a>
+</p>
 
 <a id="english"></a>
 
