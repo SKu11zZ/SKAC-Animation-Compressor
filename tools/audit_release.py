@@ -16,6 +16,7 @@ ALLOWED_TOP_LEVEL = {
     ".gitattributes",
     ".gitignore",
     "CITATION.cff",
+    "FORMAT.md",
     "LICENSE",
     "manifests",
     "PROTOCOL.md",
@@ -25,6 +26,7 @@ ALLOWED_TOP_LEVEL = {
     "reports",
     "SECURITY.md",
     "skac_benchmark",
+    "skac_codec",
     "skac_public_core",
     "tests",
     "THIRD_PARTY_NOTICES.md",
@@ -42,7 +44,7 @@ FORBIDDEN_SUFFIXES = {
     ".7z", ".abc", ".avi", ".blend", ".bvh", ".ckpt", ".dll", ".dylib",
     ".exe", ".fbx", ".glb", ".gltf", ".gz", ".mkv", ".mov", ".mp4",
     ".npy", ".npz", ".obj", ".onnx", ".pb", ".pt", ".pth", ".rar",
-    ".safetensors", ".so", ".tar", ".tgz", ".usd", ".usda", ".usdc",
+    ".safetensors", ".skac", ".so", ".tar", ".tgz", ".usd", ".usda", ".usdc",
     ".usdz", ".zip",
 }
 MAX_PUBLIC_FILE_BYTES = 5 * 1024 * 1024

@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this benchmark, please cite the software and the evaluated upstream methods."
 title: "SKAC Academic Benchmark"
 type: software
-version: 0.1.0
+version: 0.2.0
 authors:
   - name: "SKAC Academic Benchmark contributors"
 license: Apache-2.0

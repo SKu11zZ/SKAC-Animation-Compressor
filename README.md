@@ -18,6 +18,7 @@ public baseline.
 
 ### What is here
 
+- `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
 - `skac_public_core`: a deterministic NumPy-only cross-skeleton baseline;
 - `skac_benchmark`: manifest loading, validation, metrics, and the command-line runner;
 - `tools`: SAN-compatible scoring, public baseline runners, hashing, and release checks;
@@ -41,6 +42,9 @@ Python 3.10+ and NumPy are enough for the benchmark itself.
 
 ```text
 python -m unittest discover -s tests -v
+python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec inspect motion.skac
+python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -66,13 +70,20 @@ copy mapped local rotations, keep unmatched target joints at identity, and scale
 translation by skeleton height. It is deliberately small and readable. It is a public
 baseline, not a claim of feature parity with any non-public system.
 
-This snapshot publishes the evaluator and the public retargeting baseline. It defines
-and validates the codec-quality layer, but it does not yet publish the animation codec
-implementation itself. The compressor therefore cannot be reproduced from this
-snapshot alone.
+The public Codec now provides a real BVH-to-`.skac`-to-BVH path. Format 1.0 uses
+smallest-three quaternion coding, bounded uniform translation quantization, bit-level
+packing, zlib compression, skeleton hashing, declared payload lengths, and CRC checks.
+Every encode command immediately decodes the produced bytes and prints its rotation,
+translation, compression-ratio, and bits-per-joint-per-frame measurements.
 
-The `reports` directory contains three aggregate records:
+This is the first deterministic reference Codec. It does not yet perform adaptive
+keyframe reduction, entropy models trained on motion, or production FBX I/O. Those are
+later milestones rather than claims of the current release. See `FORMAT.md` for the
+binary contract.
 
+The `reports` directory contains four aggregate records:
+
+- a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - an official SAN public-test reproduction;
 - a simple public rotation-copy pipeline trial;
 - a full SAN run using `skac_public_core`.
@@ -115,6 +126,7 @@ downloaded materials keep their own licenses and terms.
 
 ### 这里现在有什么
 
+- `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
 - `skac_public_core`：只依赖 NumPy 的确定性跨骨骼基线；
 - `skac_benchmark`：清单读取、合法性检查、指标和命令行入口；
 - `tools`：SAN 兼容评分、公开基线运行器、哈希和发布审计；
@@ -136,6 +148,9 @@ downloaded materials keep their own licenses and terms.
 
 ```text
 python -m unittest discover -s tests -v
+python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec inspect motion.skac
+python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_benchmark evaluate manifests/samples.template.jsonl --output reports/metrics.json
 python tools/audit_release.py .
 ```
@@ -156,11 +171,17 @@ python tools/audit_release.py .
 局部旋转，让未映射关节保持单位旋转，并按骨架高度缩放根位移。实现刻意保持得比较小，
 方便检查。它是公开基线，不代表与任何非公开系统功能一致。
 
-当前快照公开的是评测器和公开重定向基线。Codec 质量层的定义与检查已经具备，但动画
-压缩器核心本身还没有随这个快照发布，所以只拿当前仓库还不能复现压缩器本体。
+公开 Codec 现在已经能真正跑通 `BVH → .skac → BVH`。格式 1.0 使用 smallest-three
+四元数编码、有界均匀位移量化、位级打包、zlib 压缩、骨架哈希、长度校验和 CRC。每次
+编码都会立刻从生成的字节解码一次，并输出旋转误差、位移误差、压缩比和每关节每帧位数。
 
-`reports` 里目前有三份汇总记录：
+这是第一版确定性参考 Codec。它还没有自适应关键帧删减、针对动作训练的熵模型和生产级
+FBX 输入输出，这些属于后续里程碑，不会写成当前版本已经具备的能力。二进制约定见
+`FORMAT.md`。
 
+`reports` 里目前有四份汇总记录：
+
+- 一份使用公开 SAN BVH 的 Codec 1.0 往返测试；
 - SAN 官方公开测试复现；
 - 一个简单的公开旋转复制管线试验；
 - 使用 `skac_public_core` 跑完的 SAN 测试。

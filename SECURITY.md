@@ -13,6 +13,8 @@ The following rules are mandatory:
 2. Do not scan parent directories. Release auditing is scoped to this subtree only.
 3. Store data outside version control and refer to it only through relative paths below
    a declared public-data root.
+   Generated `.skac` files are asset data: they can contain source joint names and must
+   not be committed without a separate provenance and redistribution review.
 4. Automatic-track configuration is frozen once per skeleton. Per-animation tuning is
    rejected.
 5. Artist Gold is a separate track and can never be aggregated with automatic results.
