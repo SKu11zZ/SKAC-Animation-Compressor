@@ -12,13 +12,14 @@ TEXT_SUFFIXES = {
     ".h", ".hpp", ".html", ".ini", ".json", ".jsonl", ".md", ".py",
     ".svg", ".toml", ".tsv", ".txt", ".uplugin", ".xml", ".yaml", ".yml",
 }
-TEXT_FILENAMES = {".gitattributes", ".gitignore", "LICENSE"}
+TEXT_FILENAMES = {".gitattributes", ".gitignore", ".nojekyll", "LICENSE"}
 ALLOWED_TOP_LEVEL = {
     ".gitattributes",
     ".gitignore",
     "AGENT_CLI.md",
     "assets",
     "CITATION.cff",
+    "docs",
     "FBX.md",
     "FORMAT.md",
     "LICENSE",
