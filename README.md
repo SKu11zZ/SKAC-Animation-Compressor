@@ -26,6 +26,11 @@ reconstruction error cannot be presented as retargeting quality.
 
 ![SKAC Codec compression and whole-clip decode performance](reports/codec_showcase_8x20_public.svg?v=20260802-concrete)
 
+[Open the interactive Codec Explorer](reports/codec_explorer.html) to select any of
+the 20 benchmark animations, inspect all eight character results, and optionally load
+matching public BVH files for local skeletal playback. The page works offline and does
+not upload the files you choose.
+
 This fixed-seed public run compressed and decoded the same 20 randomly selected
 animations on eight characters: 160 BVH clips and 645.35 seconds of motion in total.
 The high preset stored 32.57 MiB of float32 animated channels in 5.48 MiB of `.skac`
@@ -199,6 +204,10 @@ SKAC 会把角色动画库压成体积更小、可以直接发布的 `.skac` 资
 ### Codec 性能展示 / Codec performance snapshot
 
 ![SKAC Codec 压缩与整段解码性能](reports/codec_showcase_8x20_public.svg?v=20260802-concrete)
+
+[打开交互式 Codec Explorer](reports/codec_explorer.html)，可以选择 20 条基准动画中的任意
+一条，查看八个角色的逐条结果，也可以在本地载入对应的公开 BVH 做骨架播放。页面可以离线
+运行，选择的文件不会上传。
 
 这次公开测试固定了随机种子，让八个角色使用同一组随机抽出的 20 条动画，共 160 个 BVH、
 645.35 秒动作。high 档把 32.57 MiB 的 float32 动画通道存成了 5.48 MiB 的 `.skac` 文件，
