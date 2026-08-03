@@ -13,7 +13,6 @@ from tools.build_codec_explorer import build_explorer_data, write_html_bundle
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "reports" / "codec_showcase_8x20_public.json"
 HTML = ROOT / "reports" / "codec_explorer.html"
-PAGES_HTML = ROOT / "docs" / "index.html"
 
 
 class CodecExplorerTests(unittest.TestCase):
@@ -44,11 +43,16 @@ class CodecExplorerTests(unittest.TestCase):
         folded = html.casefold()
         self.assertIn('id="animationselect"', folded)
         self.assertIn('id="viewmodeselect"', folded)
+        self.assertIn('id="animationselect" aria-label="animation" disabled', folded)
+        self.assertIn('id="characterselect" aria-label="character" disabled', folded)
+        self.assertIn('id="viewmodeselect" aria-label="viewport layout" disabled', folded)
         self.assertIn('id="skeletoncanvas"', folded)
         self.assertIn('id="metricsTitle"'.casefold(), folded)
         self.assertIn('accept=".bvh"', folded)
         self.assertIn('4-up / 四角色', folded)
         self.assertIn('load bvh / 载入后播放', folded)
+        self.assertIn('0 bundled bvh / 不内置动画', folded)
+        self.assertIn('角色和动画选项来自这些本地文件', folded)
         self.assertIn('id="codecexplorerdata"', folded)
         self.assertNotIn("https://", folded)
         self.assertNotIn("http://", folded)
@@ -61,11 +65,6 @@ class CodecExplorerTests(unittest.TestCase):
         self.assertIsNotNone(match)
         embedded = json.loads(match.group(1))
         self.assertEqual(len(embedded["samples"]), 160)
-
-    def test_github_pages_entry_matches_the_offline_explorer(self) -> None:
-        self.assertTrue(PAGES_HTML.is_file())
-        self.assertEqual(PAGES_HTML.read_bytes(), HTML.read_bytes())
-
 
 if __name__ == "__main__":
     unittest.main()

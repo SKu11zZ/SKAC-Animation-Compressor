@@ -14,15 +14,6 @@ class ReleaseAuditTests(unittest.TestCase):
             (root / "README.md").write_text("public benchmark\n", encoding="utf-8")
             self.assertEqual(audit(root, []), [])
 
-    def test_accepts_github_pages_output(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            docs = root / "docs"
-            docs.mkdir()
-            (docs / "index.html").write_text("<!doctype html>\n", encoding="utf-8")
-            (docs / ".nojekyll").write_text("", encoding="utf-8")
-            self.assertEqual(audit(root, []), [])
-
     def test_rejects_release_excluded_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

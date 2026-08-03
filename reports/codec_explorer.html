@@ -553,23 +553,27 @@
         <h1 id="pageTitle">Animation Codec Explorer</h1>
       </div>
       <p class="hero-copy">
-        选择一条基准动画和角色，查看真实的逐动画压缩、解码与误差数据。
-        拖入公开 BVH 后，页面会在本地解析并播放骨架；文件不会上传。
+        本页面不内置角色或动画。先载入你本机的公开 BVH 文件夹，页面才会根据
+        实际读取成功的内容生成角色和动画选项；文件不会上传。
       </p>
     </section>
 
     <section class="control-panel" aria-label="Animation selection and local files">
       <label class="field">
         <span class="field-label">Animation / 动画</span>
-        <select id="animationSelect" aria-label="Animation"></select>
+        <select id="animationSelect" aria-label="Animation" disabled>
+          <option value="" selected>Load local BVH first / 请先载入本地 BVH</option>
+        </select>
       </label>
       <label class="field">
         <span class="field-label">Focus character / 指标角色</span>
-        <select id="characterSelect" aria-label="Character"></select>
+        <select id="characterSelect" aria-label="Character" disabled>
+          <option value="" selected>No local character / 尚未载入角色</option>
+        </select>
       </label>
       <label class="field">
         <span class="field-label">Viewport / 视窗</span>
-        <select id="viewModeSelect" aria-label="Viewport layout">
+        <select id="viewModeSelect" aria-label="Viewport layout" disabled>
           <option value="1">Single / 单角色</option>
           <option value="4" selected>4-up / 四角色</option>
           <option value="8">8-up / 八角色</option>
@@ -584,7 +588,7 @@
         <input id="bvhFolder" type="file" accept=".bvh" webkitdirectory multiple>
       </label>
       <div class="load-status">
-        <span id="fileStatus" aria-live="polite">指标已内置；骨架预览等待本地 BVH。</span>
+        <span id="fileStatus" aria-live="polite">没有内置 BVH；请选择本地公开文件或文件夹。</span>
         <span class="local-only">LOCAL ONLY / 仅本地读取</span>
       </div>
     </section>
@@ -592,20 +596,20 @@
     <section class="viewer-shell" aria-labelledby="viewerTitle">
       <div class="viewer-head">
         <div>
-          <div class="viewer-kicker">Selected motion / 当前动画</div>
-          <h2 class="viewer-title" id="viewerTitle">—</h2>
+          <div class="viewer-kicker">Local motion / 本地动画</div>
+          <h2 class="viewer-title" id="viewerTitle">No local animation loaded / 尚未载入本地动画</h2>
         </div>
         <div class="viewer-meta">
           <span class="tag" id="characterTag">—</span>
           <span class="tag" id="durationTag">—</span>
-          <span class="tag signal" id="previewTag">METRICS MODE / 指标模式</span>
+          <span class="tag" id="previewTag">0 BUNDLED BVH / 不内置动画</span>
         </div>
       </div>
       <div class="canvas-wrap">
         <canvas id="skeletonCanvas" aria-label="Local BVH skeleton preview"></canvas>
         <div class="canvas-note">
-          <strong id="canvasHeadline">Load the matching public BVH to enable playback.</strong>
-          <span id="canvasSubline">当前画面是明确标注的占位骨架，不代表基准动画姿态。</span>
+          <strong id="canvasHeadline">Load local public BVH files to begin.</strong>
+          <span id="canvasSubline">页面不会预装、下载或伪造角色动画；当前画面只是空状态。</span>
           <button class="canvas-cta" id="loadPromptButton" type="button">Load BVH to unlock playback / 载入后解锁播放</button>
         </div>
       </div>
@@ -628,10 +632,10 @@
       <div class="section-head">
         <div>
           <div class="section-kicker">Measured result / 实测结果</div>
-          <h2 class="section-title" id="metricsTitle">Metrics for this clip</h2>
+          <h2 class="section-title" id="metricsTitle">Metrics after local match / 本地匹配后显示指标</h2>
         </div>
         <p class="section-note" id="metricsNote">
-          所有数值直接来自固定种子的公开跑测。编码与解码不含文件读写，计时结果与机器有关。
+          只有本地加载的动画与公开跑分记录匹配时，才显示对应数值；页面不提供可下载的角色或动画。
         </p>
       </div>
 
@@ -654,7 +658,7 @@
         <article class="metric">
           <div class="metric-label">Encode / 编码耗时</div>
           <div class="metric-value" id="encodeMetric">—</div>
-          <div class="metric-sub">Offline encode, file I/O excluded</div>
+          <div class="metric-sub" id="encodeSub">Waiting for a local match</div>
         </article>
         <article class="metric">
           <div class="metric-label">Decode / 整段解码</div>
@@ -670,7 +674,7 @@
 
       <div class="comparison">
         <div class="comparison-title">
-          <span>Same animation across eight characters / 同一动画的八角色结果</span>
+          <span>Same animation across loaded characters / 同一动画的已加载角色结果</span>
           <span>BLACK = FLOAT32 · MUTED = SKAC / 黑色为原始，灰色为压缩后</span>
         </div>
         <div class="comparison-scroll">
@@ -680,8 +684,8 @@
 
       <div class="method">
         <article class="method-card">
-          <strong>真实数据，不是演示数字</strong>
-          <p>动画、角色、帧数、字节数、耗时和误差均来自同一份公开 JSON；页面不会重新估算跑分。</p>
+          <strong>没有捆绑角色或动画</strong>
+          <p>GitHub 页面只包含播放器和公开跑分记录。角色与动画选项完全由用户本地载入的 BVH 生成。</p>
         </article>
         <article class="method-card">
           <strong>播放与指标分层</strong>
@@ -744,6 +748,7 @@
         savedMetric: $("savedMetric"),
         savedSub: $("savedSub"),
         encodeMetric: $("encodeMetric"),
+        encodeSub: $("encodeSub"),
         decodeMetric: $("decodeMetric"),
         decodeSub: $("decodeSub"),
         errorMetric: $("errorMetric"),
@@ -756,6 +761,7 @@
         DATA.samples.map((sample) => [`${sample.animation}\u0000${sample.character}`, sample])
       );
       const loadedClips = [];
+      const localCatalog = { animations: [], characters: [] };
       const slotColors = [
         "#242522", "#6f7771", "#747983", "#82786f",
         "#5f6868", "#77736d", "#666b72", "#85857f"
@@ -782,11 +788,9 @@
         return node;
       }
 
-      DATA.animations.forEach((name) => elements.animation.appendChild(option(name)));
-      DATA.characters.forEach((name) => elements.character.appendChild(option(name)));
       elements.runStatus.textContent =
-        `${DATA.animations.length} ANIMATIONS · ${DATA.characters.length} CHARACTERS · ` +
-        `${DATA.samples.length} MEASUREMENTS / ${DATA.samples.length} 条实测记录`;
+        `0 BUNDLED BVH · ${DATA.samples.length} PUBLIC MEASUREMENTS / ` +
+        `不内置角色动画 · ${DATA.samples.length} 条公开跑分记录`;
       elements.sourceNote.textContent =
         `Source hash: ${DATA.source_report_sha256.slice(0, 12)} · seed ${DATA.seed} · ${DATA.quality} preset`;
 
@@ -825,9 +829,11 @@
       function visibleCharacters() {
         const count = Number(elements.viewMode.value);
         const focus = elements.character.value;
+        const available = localCatalog.characters;
+        if (!focus || !available.length) return [];
         if (count === 1) return [focus];
-        if (count === DATA.characters.length) return DATA.characters.slice();
-        return [focus, ...DATA.characters.filter((character) => character !== focus)].slice(0, count);
+        if (count >= available.length) return available.slice();
+        return [focus, ...available.filter((character) => character !== focus)].slice(0, count);
       }
 
       function findLoadedClip(animation, character) {
@@ -836,6 +842,7 @@
         let best = null;
         let bestScore = -1;
         for (const clip of loadedClips) {
+          if (clip.animationName === animation && clip.characterName === character) return clip;
           const paddedPath = ` ${clip.pathKey} `;
           const taggedCharacters = DATA.characters.filter((candidate) =>
             paddedPath.includes(` ${normalizeName(candidate)} `)
@@ -866,6 +873,7 @@
         elements.savedMetric.textContent = formatBytes(saved);
         elements.savedSub.textContent = `${saved.toLocaleString()} fewer bytes`;
         elements.encodeMetric.textContent = `${sample.encode_clip_ms.toFixed(2)} ms`;
+        elements.encodeSub.textContent = "Offline encode, file I/O excluded";
         elements.decodeMetric.textContent = `${sample.decode_clip_ms_median.toFixed(2)} ms`;
         elements.decodeSub.textContent = `Median of ${DATA.decode_iterations} whole-clip runs`;
         elements.errorMetric.textContent = `${sample.rotation_error_degrees_max.toFixed(5)}°`;
@@ -874,7 +882,7 @@
       }
 
       function renderComparison(animation, selectedCharacter) {
-        const rows = DATA.characters
+        const rows = localCatalog.characters
           .map((character) => sampleMap.get(`${animation}\u0000${character}`))
           .filter(Boolean);
         const rawMax = Math.max(...rows.map((sample) => sample.raw_channel_bytes_float32), 1);
@@ -908,6 +916,71 @@
         elements.comparison.innerHTML = header + body;
       }
 
+      function clearMetrics(message) {
+        [elements.rawMetric, elements.encodedMetric, elements.savedMetric,
+          elements.encodeMetric, elements.decodeMetric, elements.errorMetric]
+          .forEach((element) => { element.textContent = "—"; });
+        [elements.rawSub, elements.encodedSub, elements.savedSub, elements.encodeSub,
+          elements.decodeSub, elements.errorSub]
+          .forEach((element) => { element.textContent = message; });
+      }
+
+      function setSelectOptions(select, values, placeholder) {
+        const previous = select.value;
+        select.replaceChildren();
+        if (!values.length) {
+          const empty = option("");
+          empty.textContent = placeholder;
+          select.appendChild(empty);
+          select.disabled = true;
+          return;
+        }
+        values.forEach((value) => select.appendChild(option(value)));
+        select.disabled = false;
+        select.value = values.includes(previous) ? previous : values[0];
+      }
+
+      function classifyLoadedClip(clip) {
+        const paddedPath = ` ${clip.pathKey} `;
+        clip.characterName = DATA.characters.find((character) =>
+          paddedPath.includes(` ${normalizeName(character)} `)
+        ) || null;
+        const knownAnimation = DATA.animations
+          .slice()
+          .sort((left, right) => right.length - left.length)
+          .find((animation) => {
+            const key = normalizeName(animation);
+            return clip.baseKey === key || paddedPath.includes(` ${key} `);
+          });
+        clip.animationName = knownAnimation || clip.displayName;
+      }
+
+      function refreshLocalCatalog() {
+        loadedClips.forEach(classifyLoadedClip);
+        localCatalog.characters = DATA.characters.filter((character) =>
+          loadedClips.some((clip) => clip.characterName === character)
+        );
+        localCatalog.animations = Array.from(new Set(
+          loadedClips
+            .filter((clip) => clip.characterName && clip.animationName)
+            .map((clip) => clip.animationName)
+        )).sort((left, right) => left.localeCompare(right));
+        setSelectOptions(
+          elements.animation,
+          localCatalog.animations,
+          "No matched local animation / 没有匹配到本地动画"
+        );
+        setSelectOptions(
+          elements.character,
+          localCatalog.characters,
+          "No recognized local character / 没有识别到本地角色"
+        );
+        elements.viewMode.disabled = !localCatalog.characters.length;
+        elements.runStatus.textContent =
+          `${loadedClips.length} LOCAL BVH · ${localCatalog.characters.length} CHARACTERS · ` +
+          `${localCatalog.animations.length} ANIMATIONS / 本地读取，不上传`;
+      }
+
       function setSlots(slots) {
         viewer.slots = slots;
         const focusSlot = slots.find((slot) => slot.character === elements.character.value && slot.clip);
@@ -919,7 +992,7 @@
         const slotCount = slots.length;
         elements.canvas.style.minWidth = slotCount === 1 ? "" : `${Math.max(720, slotCount * 180)}px`;
         elements.characterTag.textContent = slotCount === 1
-          ? elements.character.value
+          ? slots[0].character
           : `${slotCount}-UP VIEW / ${slotCount} 角色`;
         if (viewer.primaryClip) {
           elements.play.textContent = "Play / 播放";
@@ -948,17 +1021,41 @@
       }
 
       function renderSelection() {
+        const animation = elements.animation.value;
+        const character = elements.character.value;
+        if (!animation || !character) {
+          elements.viewerTitle.textContent = "No local animation loaded / 尚未载入本地动画";
+          elements.characterTag.textContent = "NO ASSETS BUNDLED / 不内置资产";
+          elements.durationTag.textContent = "WAITING FOR LOCAL BVH / 等待本地文件";
+          clearMetrics("Load a matching local BVH first / 请先载入匹配的本地 BVH");
+          elements.comparison.innerHTML =
+            '<div class="comparison-row"><div>Load local public BVH files to create animation and character options. / 载入本地公开 BVH 后才会生成选项。</div></div>';
+          setSlots([{ character: "LOCAL BVH REQUIRED / 请载入本地文件", color: slotColors[0], clip: null, index: 0 }]);
+          elements.characterTag.textContent = "NO ASSETS BUNDLED / 不内置资产";
+          elements.previewTag.textContent = "0 BUNDLED BVH / 不内置动画";
+          return;
+        }
         const sample = currentSample();
-        if (!sample) return;
-        elements.viewerTitle.textContent = sample.animation;
-        elements.durationTag.textContent =
-          `${sample.frame_count} FRAMES · ${sample.playback_budget_seconds.toFixed(3)} S`;
-        renderMetrics(sample);
-        renderComparison(sample.animation, sample.character);
-        setSlots(visibleCharacters().map((character, index) => ({
-          character,
-          color: slotColors[DATA.characters.indexOf(character) % slotColors.length],
-          clip: findLoadedClip(sample.animation, character),
+        const selectedClip = findLoadedClip(animation, character);
+        elements.viewerTitle.textContent = animation;
+        if (selectedClip) {
+          elements.durationTag.textContent =
+            `${selectedClip.frameCount} FRAMES · ${((selectedClip.frameCount - 1) * selectedClip.frameTime).toFixed(3)} S`;
+        } else {
+          elements.durationTag.textContent = "LOCAL CLIP MISSING / 本地文件缺失";
+        }
+        if (sample) {
+          renderMetrics(sample);
+          renderComparison(animation, character);
+        } else {
+          clearMetrics("No frozen benchmark row for this local clip / 该本地动画没有冻结跑分");
+          elements.comparison.innerHTML =
+            '<div class="comparison-row"><div>Playback is available, but no Codec score is claimed for this local animation. / 可以播放，但不会为这条动画虚构 Codec 指标。</div></div>';
+        }
+        setSlots(visibleCharacters().map((visibleCharacter, index) => ({
+          character: visibleCharacter,
+          color: slotColors[DATA.characters.indexOf(visibleCharacter) % slotColors.length],
+          clip: findLoadedClip(animation, visibleCharacter),
           index
         })));
       }
@@ -1052,6 +1149,7 @@
           frameTime,
           values: new Float64Array(values.slice(0, expectedValues)),
           sourcePath,
+          displayName: baseName,
           baseKey: normalizeName(baseName),
           pathKey: normalizeName(sourcePath)
         };
@@ -1371,7 +1469,8 @@
         }
         elements.fileStatus.textContent = errors.length
           ? `已载入 ${loaded} 个，${errors.length} 个失败。${errors[0]}`
-          : `已在本地载入 ${loaded} 个 BVH；切换动画时会自动匹配。`;
+          : `已在本地载入 ${loaded} 个 BVH；角色和动画选项来自这些本地文件。`;
+        refreshLocalCatalog();
         renderSelection();
       }
 

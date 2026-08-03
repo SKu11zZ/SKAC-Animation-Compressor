@@ -26,12 +26,12 @@ reconstruction error cannot be presented as retargeting quality.
 
 ![SKAC Codec compression and whole-clip decode performance](reports/codec_showcase_8x20_public.svg?v=20260802-concrete)
 
-[Open the live Codec Explorer](https://sku11zz.github.io/SKAC-Animation-Compressor/)
-or [use the offline copy](reports/codec_explorer.html) to select any of
-the 20 benchmark animations, inspect all eight character results, and optionally load
-matching public BVH files for local skeletal playback. Its viewport switches between
-one, four, or eight characters and synchronizes every matched clip on one timeline.
-The page works offline and does not upload the files you choose.
+[Open the local Codec Explorer](reports/codec_explorer.html) and load your own public
+BVH folder. The page starts with no selectable characters or animations; it creates
+those options only from files the browser actually reads. Matching benchmark clips
+unlock their measured Codec rows, while other local clips remain playback-only. Its
+viewport switches between one, four, or eight characters and synchronizes every
+matched clip on one timeline. The page works offline and uploads nothing.
 
 This fixed-seed public run compressed and decoded the same 20 randomly selected
 animations on eight characters: 160 BVH clips and 645.35 seconds of motion in total.
@@ -207,10 +207,10 @@ SKAC 会把角色动画库压成体积更小、可以直接发布的 `.skac` 资
 
 ![SKAC Codec 压缩与整段解码性能](reports/codec_showcase_8x20_public.svg?v=20260802-concrete)
 
-[在线打开 Codec Explorer](https://sku11zz.github.io/SKAC-Animation-Compressor/)，
-或使用[仓库内的离线版本](reports/codec_explorer.html)，可以选择 20 条基准动画中的任意
-一条，查看八个角色的逐条结果，也可以在本地载入对应的公开 BVH 做骨架播放。视窗支持单角色、
-四角色和八角色模式，匹配到的动作共用一条时间轴同步播放。页面可以离线运行，选择的文件不会上传。
+[打开仓库内的本地 Codec Explorer](reports/codec_explorer.html) 后，先载入你自己的公开 BVH
+文件夹。页面初始不会提供任何可选角色或动画，只有浏览器实际读取成功后才生成选项；匹配到基准
+清单的动画会显示对应实测 Codec 数据，其他本地动画只播放、不冒充跑分。视窗支持单角色、四角色
+和八角色模式，匹配到的动作共用一条时间轴同步播放。页面离线运行，不上传任何文件。
 
 这次公开测试固定了随机种子，让八个角色使用同一组随机抽出的 20 条动画，共 160 个 BVH、
 645.35 秒动作。high 档把 32.57 MiB 的 float32 动画通道存成了 5.48 MiB 的 `.skac` 文件，

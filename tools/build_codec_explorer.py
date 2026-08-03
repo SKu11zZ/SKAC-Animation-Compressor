@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -45,12 +44,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--html",
         type=Path,
         default=Path("reports/codec_explorer.html"),
-    )
-    parser.add_argument(
-        "--pages-output",
-        type=Path,
-        default=Path("docs/index.html"),
-        help="Copy the finished single-file explorer to the GitHub Pages root.",
     )
     return parser.parse_args(argv)
 
@@ -135,9 +128,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     report = json.loads(source_bytes.decode("utf-8"))
     data = build_explorer_data(report, source_bytes)
     write_html_bundle(args.html, data)
-    args.pages_output.parent.mkdir(parents=True, exist_ok=True)
-    if args.pages_output.resolve() != args.html.resolve():
-        shutil.copyfile(args.html, args.pages_output)
     print(
         json.dumps(
             {
@@ -145,7 +135,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "character_count": len(data["characters"]),
                 "sample_count": len(data["samples"]),
                 "output": str(args.html),
-                "pages_output": str(args.pages_output),
             },
             sort_keys=True,
         )
