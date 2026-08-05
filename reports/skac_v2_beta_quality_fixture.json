@@ -29,7 +29,7 @@
       "unit": "absolute"
     },
     {
-      "actual": 269.8509073736761,
+      "actual": 309.9994187510899,
       "category": "performance",
       "comparator": ">=",
       "id": "decode_realtime_factor",
@@ -64,9 +64,9 @@
   "evaluation_case": "same_character",
   "passed": true,
   "performance": {
-    "decode_clip_ms_median": 11.8584,
+    "decode_clip_ms_median": 10.3226,
     "decode_iterations": 5,
-    "decode_realtime_factor": 269.8509073736761
+    "decode_realtime_factor": 309.9994187510899
   },
   "profile": null,
   "runtime_diagnostics": null,

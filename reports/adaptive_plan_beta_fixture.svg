@@ -55,5 +55,5 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#141414}
 <text x="940.00" y="450" class="small">12.0 bit</text>
 <line x1="52" y1="528" x2="1228" y2="528" stroke="#d4d1cb"/>
 <text x="52" y="546" class="small">Planned payload covers pre-entropy rotation and translation data; it is not a final compression ratio.</text>
-<text x="1228" y="546" text-anchor="end" class="small">Plan 3460e8fd6ad7</text>
+<text x="1228" y="546" text-anchor="end" class="small">Plan b87d412c5a09</text>
 </svg>

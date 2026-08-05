@@ -71,7 +71,7 @@
     "translation_error_mean": 5.898059818321144e-17
   },
   "passed": true,
-  "plan_sha256": "3460e8fd6ad7c74ddae95c9d067266f56c2c272786ac23853ac8e60daa94ddfe",
+  "plan_sha256": "b87d412c5a0953558e5bc7c8c2f30ac599c4c5f78bfa61c61510135bb11cd691",
   "quality": "high",
   "rotation_tracks": [
     {
@@ -668,7 +668,7 @@
     }
   ],
   "schema": "skac.adaptive_plan",
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "segmentation": {
     "activity_definition": "mean_joint_degrees_per_second_plus_90x_normalized_root_speed",
     "max_frames": 24,
@@ -717,6 +717,8 @@
     "planned_translation_bits_weighted_mean": 8.0,
     "planned_translation_key_count": 16,
     "planned_translation_payload_bytes_pre_entropy": 272,
+    "rotation_budget_attempts": 1,
+    "rotation_budget_scale": 1.0,
     "rotation_track_segment_count": 16,
     "segment_count": 4,
     "translation_track_segment_count": 12

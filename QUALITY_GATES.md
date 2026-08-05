@@ -83,6 +83,18 @@ Estimated payload bytes are measured before entropy coding and are never present
 final compression ratio. The accepted plan is the input to the SKAC v2 chunk writer and
 does not replace the same-character gate.
 
+### Paired v1/v2.1 public regression
+
+`tools/run_codec_v2_comparison.py` applies both formats to the same fixed public clip
+selection. It records concrete container sections, whole-clip Python decode timing,
+Python traced peak decode memory, and full reconstruction metrics for every pair. Both
+versions are checked against the same-character limits above; v2.1 must also be no
+larger in aggregate. A report remains publishable when one version fails, but its
+top-level `passed` field is false and the failed check must be stated beside the result.
+
+The comparison does not include retargeting, process RSS, file I/O, partial chunk
+decoding, network streaming, or generated frames.
+
 ### Native Runtime Beta gate
 
 The generated Release fixture adds engine-facing regression limits without replacing
@@ -166,6 +178,21 @@ Codec 误差、共有映射覆盖、快速执行器与参考实现一致，以�
 分数仍然单独报告。
 
 当前公开 Python 解码器会先还原完整动画；分块和随机帧解码还是后续格式能力。
+
+### SKAC v2 感知规划门槛
+
+`skac adaptive-plan` 会在接受方案前实际重建所规划的旋转和位移轨道，然后检查当前档位的
+最大局部旋转误差和最大全局位置误差。层级累计误差不合格时会收紧旋转预算后重试。通过的
+规划才会交给 SKAC v2 分块写入器；熵编码前的估算字节数不能当成最终压缩比。
+
+### v1/v2.1 成对公开回归
+
+`tools/run_codec_v2_comparison.py` 会把 v1 和 v2.1 用在同一组固定公开动画上，逐对记录具体
+容器区段、Python 整段解码耗时、Python 跟踪到的解码峰值内存，以及完整重建误差。两版都
+按照上面的同角色门槛检查，v2.1 还必须保证汇总体积不大于 v1。某一版失败时报告仍可公开，
+但顶层 `passed` 必须为 false，并在结果旁明确写出失败项。
+
+这张对照不包含重定向、进程 RSS、文件读取、按需分块解码、网络流送或生成帧。
 
 ### 原生 Runtime Beta 门槛
 

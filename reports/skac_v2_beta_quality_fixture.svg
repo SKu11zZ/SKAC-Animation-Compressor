@@ -20,7 +20,7 @@
 <text x="830" y="263" class="value">0 absolute &lt;= 1e-10</text>
 <text x="48" y="311" class="label">decode realtime factor</text>
 <rect x="390" y="294" width="420" height="22" rx="5" fill="#e2e8f0"/>
-<rect x="390" y="294" width="15.56" height="22" rx="5" fill="#22c55e"/>
-<text x="830" y="311" class="value">269.851 x_realtime &gt;= 10</text>
+<rect x="390" y="294" width="13.55" height="22" rx="5" fill="#22c55e"/>
+<text x="830" y="311" class="value">309.999 x_realtime &gt;= 10</text>
 <text x="48" y="356" class="small">Quality scope: codec reconstruction and direct source-skeleton decode performance</text>
 </svg>

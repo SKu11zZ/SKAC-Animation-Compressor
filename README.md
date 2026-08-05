@@ -68,6 +68,29 @@ quality gate. The exact container sections and reconstruction errors are recorde
 [`skac_v2_compact_optimization.json`](reports/skac_v2_compact_optimization.json). This
 small fixture proves the format change; it is not a production-corpus benchmark.
 
+### SKAC v1 vs v2.1 on the public 8×20 set
+
+![SKAC v1 and v2.1 public Codec comparison](reports/codec_v1_v2_1_8x20_public.svg)
+
+On the same 160 public clips, v2.1 stores 5.01 MiB instead of v1's 5.48 MiB: 485,751
+fewer bytes, or 8.46% smaller overall. Whole-clip Python decode remains 17.46× real
+time, versus 48.10× for v1, while traced peak decode memory is effectively unchanged
+at 11.82 MiB versus 11.80 MiB. The price is offline planning: summed per-clip encode
+measurements rise from 432.40 seconds to 6,514.78 seconds.
+
+The distribution matters. v2.1 is smaller on 128 clips and larger on 32; one character
+is 6.57% larger in aggregate. No per-clip fallback is applied. Under the repository's
+strict global-position gate, v2.1 passes at 0.000998 skeleton heights while v1 reaches
+0.002674 and fails that check. The complete paired measurements are in
+[`codec_v1_v2_1_8x20_public.json`](reports/codec_v1_v2_1_8x20_public.json).
+
+```text
+python tools/run_codec_v2_comparison.py --data-root PUBLIC_MIXAMO_ROOT \
+  --sample-report reports/codec_showcase_8x20_public.json \
+  --output reports/codec_v1_v2_1_8x20_public.json \
+  --visual reports/codec_v1_v2_1_8x20_public.svg --workers 8
+```
+
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
 its official source; this repo provides the protocol, runner, metrics, and a small
@@ -263,6 +286,20 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 质量门槛的情况下减少了 2,687 字节。各容器区段和重建误差见
 [`skac_v2_compact_optimization.json`](reports/skac_v2_compact_optimization.json)。这组小样例
 用来证明格式优化确实生效，不冒充生产动画库跑分。
+
+### SKAC v1 与 v2.1 公开 8×20 对照
+
+![SKAC v1 与 v2.1 公开 Codec 对照](reports/codec_v1_v2_1_8x20_public.svg)
+
+在完全相同的 160 条公开动画上，v2.1 从 v1 的 5.48 MiB 降到 5.01 MiB，实际减少
+485,751 字节，总体小 8.46%。Python 整段解码仍有 17.46 倍实时，v1 为 48.10 倍；测得的
+解码峰值内存基本不变，分别是 11.82 MiB 和 11.80 MiB。代价主要在离线规划：逐动画编码
+耗时之和从 432.40 秒增加到 6,514.78 秒。
+
+分布不能省略：v2.1 有 128 条更小、32 条更大，其中一个角色汇总后大 6.57%，当前没有做
+逐动画自动回退。按照仓库冻结的严格全局位置门槛，v2.1 以骨架高度的 0.000998 通过，v1
+达到 0.002674，因此该项失败。完整逐动画对照见
+[`codec_v1_v2_1_8x20_public.json`](reports/codec_v1_v2_1_8x20_public.json)。复现命令与英文部分相同。
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的

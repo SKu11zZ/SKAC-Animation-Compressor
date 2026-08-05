@@ -88,6 +88,8 @@ class AdaptivePlanTests(unittest.TestCase):
         self.assertTrue(first["passed"])
         self.assertEqual(reconstructed.frame_count, source.frame_count)
         self.assertGreater(first["summary"]["segment_count"], 1)
+        self.assertGreaterEqual(first["summary"]["rotation_budget_attempts"], 1)
+        self.assertLessEqual(first["summary"]["rotation_budget_scale"], 1.0)
         self.assertTrue(all(item["passed"] for item in first["checks"]))
         self.assertTrue(
             all(

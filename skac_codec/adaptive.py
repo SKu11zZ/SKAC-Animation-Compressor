@@ -28,7 +28,7 @@ from .retarget import _skeleton_height
 
 
 PLAN_SCHEMA = "skac.adaptive_plan"
-PLAN_VERSION = "1.1.0"
+PLAN_VERSION = "1.2.0"
 DEFAULT_ROTATION_BITS = (8, 10, 12, 14, 16, 18, 20)
 DEFAULT_TRANSLATION_BITS = (8, 10, 12, 14, 16, 18, 20, 22, 24)
 
@@ -224,6 +224,7 @@ def _plan_rotation_track(
                         reconstructed,
                     )
                 )
+                break
     if not options:
         raise ValueError("no rotation plan satisfies the requested error budget")
     selected = min(options, key=lambda item: (item[0], item[1], item[2], item[3]))
@@ -281,6 +282,7 @@ def _plan_translation_track(
                         reconstructed,
                     )
                 )
+                break
     if not options:
         raise ValueError("no translation plan satisfies the requested error budget")
     selected = min(options, key=lambda item: (item[0], item[1], item[2], item[3]))
@@ -340,30 +342,6 @@ def build_adaptive_plan(
     thresholds = QualityThresholds.for_settings(settings)
     quality_height = _skeleton_height(clip.skeleton, 1)
 
-    reconstructed_rotations = clip.local_rotations.copy()
-    track_records: list[dict[str, Any]] = []
-    for segment_index, (start, end) in enumerate(segments):
-        for joint in rotation_joints:
-            weight = float(importance[joint])
-            error_budget = thresholds.max_codec_rotation_degrees * (
-                1.0 - 0.4 * weight
-            )
-            reconstructed, record = _plan_rotation_track(
-                clip.local_rotations[start:end, joint], error_budget, candidate_bits
-            )
-            reconstructed_rotations[start:end, joint] = reconstructed
-            track_records.append(
-                {
-                    "segment": segment_index,
-                    "start_frame": start,
-                    "end_frame_exclusive": end,
-                    "joint": joint,
-                    "joint_name": clip.skeleton.names[joint],
-                    "perceptual_importance": weight,
-                    **record,
-                }
-            )
-
     reconstructed_translations = clip.local_translations.copy()
     translation_records: list[dict[str, Any]] = []
     base_translation_budget = (
@@ -393,14 +371,57 @@ def build_adaptive_plan(
                 }
             )
 
-    reconstructed_clip = MotionClip(
-        skeleton=clip.skeleton,
-        local_rotations=reconstructed_rotations,
-        local_translations=reconstructed_translations,
-        frame_time=clip.frame_time,
-    )
-    metrics = roundtrip_metrics(clip, reconstructed_clip)
-    global_fraction = metrics["global_position_error_max"] / quality_height
+    rotation_budget_scale = 1.0
+    rotation_budget_attempts = 0
+    reconstructed_clip: MotionClip | None = None
+    metrics: dict[str, Any] | None = None
+    global_fraction = math.inf
+    track_records: list[dict[str, Any]] = []
+    while rotation_budget_attempts < 4:
+        rotation_budget_attempts += 1
+        reconstructed_rotations = clip.local_rotations.copy()
+        track_records = []
+        for segment_index, (start, end) in enumerate(segments):
+            for joint in rotation_joints:
+                weight = float(importance[joint])
+                error_budget = (
+                    thresholds.max_codec_rotation_degrees
+                    * (1.0 - 0.4 * weight)
+                    * rotation_budget_scale
+                )
+                reconstructed, record = _plan_rotation_track(
+                    clip.local_rotations[start:end, joint],
+                    error_budget,
+                    candidate_bits,
+                )
+                reconstructed_rotations[start:end, joint] = reconstructed
+                track_records.append(
+                    {
+                        "segment": segment_index,
+                        "start_frame": start,
+                        "end_frame_exclusive": end,
+                        "joint": joint,
+                        "joint_name": clip.skeleton.names[joint],
+                        "perceptual_importance": weight,
+                        **record,
+                    }
+                )
+
+        reconstructed_clip = MotionClip(
+            skeleton=clip.skeleton,
+            local_rotations=reconstructed_rotations,
+            local_translations=reconstructed_translations,
+            frame_time=clip.frame_time,
+        )
+        metrics = roundtrip_metrics(clip, reconstructed_clip)
+        global_fraction = metrics["global_position_error_max"] / quality_height
+        if global_fraction <= thresholds.max_codec_global_position_fraction:
+            break
+        ratio = thresholds.max_codec_global_position_fraction / global_fraction
+        rotation_budget_scale *= max(0.35, min(0.85, ratio * 0.85))
+
+    if reconstructed_clip is None or metrics is None:
+        raise AssertionError("adaptive rotation planning did not run")
     checks = [
         {
             "id": "rotation_error_max",
@@ -502,6 +523,8 @@ def build_adaptive_plan(
             ),
             "translation_track_segment_count": len(translation_records),
             "segment_count": len(segments),
+            "rotation_budget_attempts": rotation_budget_attempts,
+            "rotation_budget_scale": float(rotation_budget_scale),
         },
         "metrics": {
             **metrics,

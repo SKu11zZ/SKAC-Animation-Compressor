@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1040" viewBox="0 0 1400 1040">
+<rect width="1400" height="1040" fill="#f3f1ec"/>
+<style>
+text{font-family:Inter,Segoe UI,Microsoft YaHei,Arial,sans-serif}
+.eyebrow{font-size:12px;font-weight:750;fill:#696762;letter-spacing:2px}
+.title{font-size:38px;font-weight:800;fill:#141414;letter-spacing:-1px}
+.subtitle{font-size:14px;fill:#696762}
+.kpi{font-size:33px;font-weight:800;fill:#141414}
+.accent{font-size:33px;font-weight:800;fill:#ff4f00}
+.kpilabel{font-size:12px;font-weight:750;fill:#696762;letter-spacing:1px}
+.panel{font-size:19px;font-weight:750;fill:#141414}
+.label{font-size:13px;font-weight:650;fill:#141414}
+.value{font-size:12px;font-weight:750;fill:#141414}
+.valueaccent{font-size:12px;font-weight:750;fill:#ff4f00}
+.note{font-size:11px;fill:#696762}
+</style>
+<text x="54.0" y="40.0" class="eyebrow">PUBLIC CODEC REGRESSION · SAME 160 CLIPS</text>
+<text x="54.0" y="87.0" class="title">SKAC v1 vs v2.1 — Public Codec Test</text>
+<text x="54.0" y="116.0" class="subtitle">同一组 8 个公开角色 × 20 条动画 · high 档 · 不包含重定向</text>
+<line x1="54" y1="146" x2="1346" y2="146" stroke="#141414" stroke-width="2"/>
+<line x1="54" y1="146" x2="240" y2="146" stroke="#ff4f00" stroke-width="5"/>
+<text x="54.0" y="184.0" class="kpilabel">STORAGE / 总文件大小</text>
+<text x="54.0" y="232.0" class="kpi">32.57 MiB</text>
+<text x="252.0" y="231.0" class="panel">→</text>
+<text x="294.0" y="232.0" class="kpi">5.48 MiB</text>
+<text x="394.0" y="232.0" class="panel">→</text>
+<text x="436.0" y="232.0" class="accent">5.01 MiB</text>
+<text x="54.0" y="261.0" class="subtitle">FLOAT32 channels → SKAC v1 → SKAC v2.1</text>
+<line x1="614" y1="174" x2="614" y2="274" stroke="#d0cec8"/>
+<text x="650.0" y="184.0" class="kpilabel">BYTES SAVED / 节省字节</text>
+<text x="650.0" y="232.0" class="accent">+485,751 B</text>
+<text x="650.0" y="261.0" class="subtitle">8.46% smaller vs v1</text>
+<line x1="946" y1="174" x2="946" y2="274" stroke="#d0cec8"/>
+<text x="982.0" y="184.0" class="kpilabel">MAX ROTATION ERROR / 最大旋转误差</text>
+<text x="982.0" y="232.0" class="kpi">0.05418°</text>
+<text x="982.0" y="261.0" class="subtitle">v2.1 · full local rotations</text>
+<text x="54.0" y="288.0" class="subtitle">Strict global-position gate / 严格全局位置门槛 — v1: 0.002674 FAIL · v2.1: 0.000998 PASS · limit 0.001</text>
+<rect x="54" y="304" width="1292" height="86" fill="#ffffff"/>
+<text x="78.0" y="335.0" class="kpilabel">ENCODE TOTAL / 编码总耗时</text>
+<text x="78.0" y="372.0" class="kpi">432.40s → 6514.78s</text>
+<text x="504.0" y="335.0" class="kpilabel">DECODE TOTAL / 解码中位耗时之和</text>
+<text x="504.0" y="372.0" class="kpi">13.42s → 36.97s</text>
+<text x="970.0" y="335.0" class="kpilabel">PEAK DECODE MEMORY / 单动画整段解码峰值</text>
+<text x="970.0" y="372.0" class="kpi">11.80 → 11.82 MiB</text>
+<text x="54.0" y="432.0" class="panel">Stored bytes by character / 每个角色 20 条动画的文件字节数</text>
+<text x="54.0" y="457.0" class="subtitle">Gray: SKAC v1 · Orange: SKAC v2.1 · exact values shown at right</text>
+<text x="198.0" y="519.0" class="label" text-anchor="end">Aj</text>
+<rect x="220.0" y="500.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="500.0" width="595.1" height="7" fill="#141414"/>
+<rect x="220.0" y="509.0" width="482.9" height="7" fill="#ff4f00"/>
+<text x="900.0" y="515.0" class="value">694,500 B</text>
+<text x="1040.0" y="515.0" class="value">→</text>
+<text x="1080.0" y="515.0" class="valueaccent">563,598 B</text>
+<text x="1328.0" y="515.0" class="value" text-anchor="end">17.7× decode</text>
+<line x1="54" y1="537.0" x2="1346" y2="537.0" stroke="#d0cec8"/>
+<text x="198.0" y="575.0" class="label" text-anchor="end">BigVegas</text>
+<rect x="220.0" y="556.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="556.0" width="608.5" height="7" fill="#141414"/>
+<rect x="220.0" y="565.0" width="525.7" height="7" fill="#ff4f00"/>
+<text x="900.0" y="571.0" class="value">710,092 B</text>
+<text x="1040.0" y="571.0" class="value">→</text>
+<text x="1080.0" y="571.0" class="valueaccent">613,501 B</text>
+<text x="1328.0" y="571.0" class="value" text-anchor="end">17.1× decode</text>
+<line x1="54" y1="593.0" x2="1346" y2="593.0" stroke="#d0cec8"/>
+<text x="198.0" y="631.0" class="label" text-anchor="end">Goblin_m</text>
+<rect x="220.0" y="612.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="612.0" width="650.0" height="7" fill="#141414"/>
+<rect x="220.0" y="621.0" width="627.9" height="7" fill="#ff4f00"/>
+<text x="900.0" y="627.0" class="value">758,570 B</text>
+<text x="1040.0" y="627.0" class="value">→</text>
+<text x="1080.0" y="627.0" class="valueaccent">732,730 B</text>
+<text x="1328.0" y="627.0" class="value" text-anchor="end">15.0× decode</text>
+<line x1="54" y1="649.0" x2="1346" y2="649.0" stroke="#d0cec8"/>
+<text x="198.0" y="687.0" class="label" text-anchor="end">Kaya</text>
+<rect x="220.0" y="668.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="668.0" width="604.8" height="7" fill="#141414"/>
+<rect x="220.0" y="677.0" width="508.3" height="7" fill="#ff4f00"/>
+<text x="900.0" y="683.0" class="value">705,772 B</text>
+<text x="1040.0" y="683.0" class="value">→</text>
+<text x="1080.0" y="683.0" class="valueaccent">593,196 B</text>
+<text x="1328.0" y="683.0" class="value" text-anchor="end">18.6× decode</text>
+<line x1="54" y1="705.0" x2="1346" y2="705.0" stroke="#d0cec8"/>
+<text x="198.0" y="743.0" class="label" text-anchor="end">Mousey_m</text>
+<rect x="220.0" y="724.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="724.0" width="601.3" height="7" fill="#141414"/>
+<rect x="220.0" y="733.0" width="640.8" height="7" fill="#ff4f00"/>
+<text x="900.0" y="739.0" class="value">701,723 B</text>
+<text x="1040.0" y="739.0" class="value">→</text>
+<text x="1080.0" y="739.0" class="valueaccent">747,814 B</text>
+<text x="1328.0" y="739.0" class="value" text-anchor="end">17.0× decode</text>
+<line x1="54" y1="761.0" x2="1346" y2="761.0" stroke="#d0cec8"/>
+<text x="198.0" y="799.0" class="label" text-anchor="end">Mremireh_m</text>
+<rect x="220.0" y="780.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="780.0" width="589.7" height="7" fill="#141414"/>
+<rect x="220.0" y="789.0" width="582.9" height="7" fill="#ff4f00"/>
+<text x="900.0" y="795.0" class="value">688,214 B</text>
+<text x="1040.0" y="795.0" class="value">→</text>
+<text x="1080.0" y="795.0" class="valueaccent">680,228 B</text>
+<text x="1328.0" y="795.0" class="value" text-anchor="end">18.7× decode</text>
+<line x1="54" y1="817.0" x2="1346" y2="817.0" stroke="#d0cec8"/>
+<text x="198.0" y="855.0" class="label" text-anchor="end">SportyGranny</text>
+<rect x="220.0" y="836.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="836.0" width="623.5" height="7" fill="#141414"/>
+<rect x="220.0" y="845.0" width="506.8" height="7" fill="#ff4f00"/>
+<text x="900.0" y="851.0" class="value">727,602 B</text>
+<text x="1040.0" y="851.0" class="value">→</text>
+<text x="1080.0" y="851.0" class="valueaccent">591,474 B</text>
+<text x="1328.0" y="851.0" class="value" text-anchor="end">18.8× decode</text>
+<line x1="54" y1="873.0" x2="1346" y2="873.0" stroke="#d0cec8"/>
+<text x="198.0" y="911.0" class="label" text-anchor="end">Vampire_m</text>
+<rect x="220.0" y="892.0" width="650.0" height="16" fill="#ffffff" stroke="#d0cec8"/>
+<rect x="220.0" y="892.0" width="647.5" height="7" fill="#141414"/>
+<rect x="220.0" y="901.0" width="628.8" height="7" fill="#ff4f00"/>
+<text x="900.0" y="907.0" class="value">755,700 B</text>
+<text x="1040.0" y="907.0" class="value">→</text>
+<text x="1080.0" y="907.0" class="valueaccent">733,881 B</text>
+<text x="1328.0" y="907.0" class="value" text-anchor="end">17.6× decode</text>
+<line x1="54" y1="929.0" x2="1346" y2="929.0" stroke="#d0cec8"/>
+<text x="54.0" y="955.0" class="note">32/160 clips are larger in v2.1; no per-clip fallback is applied. / v2.1 有部分动画更大，当前未启用逐动画回退。</text>
+<text x="54.0" y="978.0" class="note">Timing excludes file I/O. Peak memory is Python tracemalloc evidence, not process RSS. Full per-clip data is in JSON.</text>
+<text x="54.0" y="1001.0" class="note">计时不含文件读写；峰值内存来自 Python tracemalloc，不等于进程 RSS。逐动画数据见 JSON。</text>
+<text x="54.0" y="1024.0" class="note">Same-character Codec reconstruction only; no cross-skeleton quality claim is made.</text>
+</svg>

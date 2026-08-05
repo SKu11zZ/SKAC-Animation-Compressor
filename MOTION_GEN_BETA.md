@@ -50,8 +50,10 @@ checks.
 `skac adaptive-plan` calculates hierarchy-based perceptual importance, detects motion-
 activity boundaries, and selects rotation and translation bit widths plus key-reduction
 thresholds for every track in every segment. It reconstructs the plan before accepting
-the quality gate and writes JSON plus a bilingual SVG. Pre-entropy bytes remain planning
-data, not a final compression ratio.
+the quality gate and writes JSON plus a bilingual SVG. When accumulated hierarchy error
+misses the global-position gate, the planner tightens rotation budgets and retries rather
+than emitting the clip. Pre-entropy bytes remain planning data, not a final compression
+ratio.
 
 `skac encode --format-version 2` now writes the deterministic chunked file. Every segment
 is one independently checksummed base chunk. SKAC v2.1 compresses the skeleton, uses a
@@ -83,6 +85,14 @@ The [`size and reconstruction JSON`](reports/skac_v2_compact_optimization.json) 
 concrete bytes for v1, v2.0, and v2.1 on the same deterministic public synthetic clip.
 It is a format regression fixture, not a production-corpus benchmark.
 
+![SKAC v1 and v2.1 public Codec comparison](reports/codec_v1_v2_1_8x20_public.svg)
+
+The paired [`160-clip JSON`](reports/codec_v1_v2_1_8x20_public.json) shows the current
+tradeoff on real public data: v2.1 is 8.46% smaller overall and passes its strict quality
+gate, but Python offline encode planning is about 15× slower by summed per-clip time and
+32 clips are larger than v1. Per-clip mode selection and planner acceleration are the
+next Codec tasks before progressive or generated layers.
+
 <a id="chinese"></a>
 
 ## 中文
@@ -97,8 +107,9 @@ Motion Runtime 是确定性 SKAC Codec 上方的可选层。原始动画不依�
 插件的设备始终回退到确定性插值。
 
 当前 `skac adaptive-plan` 已经同时规划旋转和位移轨道：它计算骨骼层级感知权重，按动作
-强度自动分段，为每条轨道选择位宽与关键帧阈值，再经过真实重建门槛，输出 JSON 和中英
-双语 SVG。熵编码前的数据只用于规划，不会冒充最终压缩比。
+强度自动分段，为每条轨道选择位宽与关键帧阈值，再经过真实重建门槛；如果骨骼层级累计
+误差超过全局位置门槛，它会自动收紧旋转预算后重试，不会直接输出失败动画。最终输出 JSON
+和中英双语 SVG。熵编码前的数据只用于规划，不会冒充最终压缩比。
 
 `skac encode --format-version 2` 现在会真正写出分块文件。SKAC v2.1 把每个分段合成一个
 独立校验的基础块，同时压缩骨架、使用二进制分段索引，并删掉重复的轨道编号与目录偏移。
@@ -108,6 +119,9 @@ C ABI 没有变化。渐进质量层与生成式补间尚未加入。
 上方同时保留感知规划图和 v2 同角色质量门槛图。对应 JSON 是可检查的本机回归记录，
 其中的时间数据不用于跨机器排名。新增的 v2.1 紧凑容器图则给出同一公开合成动画在 v1、
 v2.0 和 v2.1 下的具体文件字节数与重建误差，它是格式回归证据，不是生产数据集跑分。
+新增的 160 条公开动画对照进一步表明：v2.1 总体比 v1 小 8.46%，并通过严格质量门槛，
+但 Python 离线规划耗时明显增加，且有 32 条动画比 v1 更大。因此下一步先做逐动画模式选择
+和规划器加速，再进入渐进质量层与生成式补间。
 
 公开格式和接口只使用版本化名称：`SKAC v1`、`SKAC v2`、`SKAC Pack v1` 和
 `SKAC Motion Runtime Beta`。
