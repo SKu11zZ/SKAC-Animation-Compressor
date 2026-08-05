@@ -48,12 +48,22 @@ class NativeRuntimeBetaTests(unittest.TestCase):
         self.assertIn("FCompression::UncompressMemory", implementation)
         self.assertIn("skac_retargeter_create", implementation)
 
+    def test_native_runtime_accepts_v2_chunks_without_an_abi_change(self) -> None:
+        implementation = (ROOT / "native/src/skac_runtime.cpp").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("kFormatMajorV2 = 2", implementation)
+        self.assertIn("decode_v2_container", implementation)
+        self.assertIn("host v2 chunk inflation failed", implementation)
+        self.assertTrue((ROOT / "native/tests/runtime_v2_probe.cpp").is_file())
+        self.assertTrue((ROOT / "tools/verify_native_v2_runtime.py").is_file())
+
     def test_runtime_scope_is_documented_in_both_languages(self) -> None:
         document = (ROOT / "RUNTIME_BETA.md").read_text(encoding="utf-8")
         self.assertIn("## English", document)
         self.assertIn("## 中文", document)
-        self.assertIn("whole-clip", document)
-        self.assertIn("整段载入", document)
+        self.assertIn("SKAC v2 chunks", document)
+        self.assertIn("SKAC v2 分块", document)
         self.assertIn("Profile 2.0", document)
 
 

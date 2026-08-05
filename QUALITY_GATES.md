@@ -70,17 +70,18 @@ The different-character gate does not claim perceptual target-motion accuracy wi
 target ground truth. It proves Codec bounds, shared mapping coverage, equivalence to
 the reference transform, and playback cost. Dataset retargeting scores remain separate.
 
-The public Python decoder currently reconstructs a complete clip before playback.
-Chunked and random-access decoding are later format milestones.
+The public Python decoder reconstructs a complete clip before playback. SKAC v2 stores
+independent temporal chunks and validates each one separately; retaining only a moving
+runtime window is still a later playback milestone.
 
 ### SKAC v2 perceptual-plan gate
 
-`skac adaptive-plan` reconstructs its proposed rotation tracks before accepting a plan.
-It applies the current preset's maximum local-rotation and global-position limits, and
-writes both machine-readable JSON and a self-contained bilingual SVG. Estimated
-rotation payload bytes are measured before entropy coding and are never presented as a
-final compression ratio. This planning gate does not change or replace the SKAC v1
-same-character gate.
+`skac adaptive-plan` reconstructs its proposed rotation and translation tracks before
+accepting a plan. It applies the current preset's maximum local-rotation and global-
+position limits, and writes machine-readable JSON plus a self-contained bilingual SVG.
+Estimated payload bytes are measured before entropy coding and are never presented as a
+final compression ratio. The accepted plan is the input to the SKAC v2 chunk writer and
+does not replace the same-character gate.
 
 ### Native Runtime Beta gate
 

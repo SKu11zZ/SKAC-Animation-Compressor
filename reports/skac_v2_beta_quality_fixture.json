@@ -1,0 +1,96 @@
+{
+  "case_classification": "explicit",
+  "checks": [
+    {
+      "actual": 0.03440401562239779,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "codec_rotation",
+      "limit": 0.0625,
+      "passed": true,
+      "unit": "degrees"
+    },
+    {
+      "actual": 0.0007683894056081642,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "codec_global_position",
+      "limit": 0.001,
+      "passed": true,
+      "unit": "skeleton_height_fraction"
+    },
+    {
+      "actual": 0.0,
+      "category": "quality",
+      "comparator": "<=",
+      "id": "codec_quaternion_norm",
+      "limit": 1e-10,
+      "passed": true,
+      "unit": "absolute"
+    },
+    {
+      "actual": 314.32949589407093,
+      "category": "performance",
+      "comparator": ">=",
+      "id": "decode_realtime_factor",
+      "limit": 10.0,
+      "passed": true,
+      "unit": "x_realtime"
+    }
+  ],
+  "codec": {
+    "bits_per_joint_per_frame": 114.66666666666667,
+    "compression_ratio_vs_float32_channels": 1.0465116279069768,
+    "encoded_bytes": 5504,
+    "format_version": 2,
+    "global_position_error_max": 0.013831009300946955,
+    "global_position_error_max_height_fraction": 0.0007683894056081642,
+    "global_position_error_mean": 0.003108463533288372,
+    "quality": "high",
+    "quaternion_norm_error_max": 0.0,
+    "raw_channel_bytes_float32": 5760,
+    "root_translation_error_max": 3.552713678800501e-15,
+    "root_translation_error_mean": 2.3592239273284576e-16,
+    "rotation_error_degrees_max": 0.03440401562239779,
+    "rotation_error_degrees_mean": 0.020458414574315128,
+    "translation_error_max": 3.552713678800501e-15,
+    "translation_error_mean": 5.898059818321144e-17
+  },
+  "environment": {
+    "numpy_version": "2.3.5",
+    "platform": "win32",
+    "python_version": "3.12.13"
+  },
+  "evaluation_case": "same_character",
+  "passed": true,
+  "performance": {
+    "decode_clip_ms_median": 10.1804,
+    "decode_iterations": 5,
+    "decode_realtime_factor": 314.32949589407093
+  },
+  "profile": null,
+  "runtime_diagnostics": null,
+  "runtime_equivalence": null,
+  "schema": "skac.quality_gate",
+  "schema_version": "2.0.0",
+  "scope": {
+    "pipeline": "bvh_encode_decode_direct_source_skeleton_playback",
+    "quality_claim": "codec reconstruction and direct source-skeleton decode performance",
+    "retarget_ground_truth_available": null
+  },
+  "source": {
+    "duration_seconds": 3.1666666666666665,
+    "frame_count": 96,
+    "frame_time": 0.03333333333333333,
+    "joint_count": 4,
+    "playback_budget_seconds": 3.2,
+    "skeleton_sha256": "1dee1c7b9431e8d0daefa9225b9017a03daf974e610a468a25f263ac3090d682"
+  },
+  "target": null,
+  "thresholds": {
+    "max_codec_global_position_fraction": 0.001,
+    "max_codec_rotation_degrees": 0.0625,
+    "max_quaternion_norm_error": 1e-10,
+    "minimum_decode_realtime_factor": 10.0
+  }
+}

@@ -96,6 +96,14 @@ class AdaptivePlanTests(unittest.TestCase):
                 for item in first["rotation_tracks"]
             )
         )
+        self.assertTrue(first["translation_tracks"])
+        self.assertTrue(
+            all(
+                item["reconstructed_error_max"] <= item["error_budget"] + 1e-12
+                for item in first["translation_tracks"]
+            )
+        )
+        self.assertGreater(first["summary"]["planned_translation_key_count"], 0)
         self.assertGreater(
             len({item["bits"] for item in first["rotation_tracks"]}), 1
         )

@@ -94,6 +94,7 @@ Python 3.10+ and NumPy are enough for the benchmark itself.
 ```text
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec encode input.bvh -o motion-v2.skac --quality high --format-version 2
 python -m skac_codec inspect motion.skac
 python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg
 python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
@@ -120,9 +121,10 @@ operations, responses, and exit codes. The stable Agent protocol covers the test
 workflow; it does not currently expose the experimental FBX bridge.
 
 For engine playback, `RUNTIME_BETA.md` documents the native C ABI and the Unity/Unreal
-source adapters. The Beta now covers whole-clip same-character decoding and native
-Profile 2.0 playback into a different target skeleton. Streaming and automatic engine
-coordinate conversion remain later work.
+source adapters. The Beta accepts v1 and independently inflated v2 chunks, covers same-
+character decoding, and supports native Profile 2.0 playback into a different target
+skeleton. A moving streaming window and automatic engine coordinate conversion remain
+later work.
 
 ![Native same- and different-character runtime sampling](reports/native_runtime_profile_beta.svg)
 
@@ -155,6 +157,11 @@ smallest-three quaternion coding, bounded uniform translation quantization, bit-
 packing, zlib compression, skeleton hashing, declared payload lengths, and CRC checks.
 Every encode command immediately decodes the produced bytes and prints its rotation,
 translation, compression-ratio, and bits-per-joint-per-frame measurements.
+
+SKAC v2 adds perceptual rotation and translation allocation, deterministic temporal
+segments, independent chunk checksums, and native per-chunk opening while keeping model-
+free deterministic playback. v1 remains the default; select v2 explicitly with
+`--format-version 2` during the Beta.
 
 The same `.skac` file can also target multiple BVH skeletons through hash-pinned,
 one-time profiles. Profile 2.0 recognizes naming conventions, compiles hierarchy work
@@ -271,6 +278,7 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 ```text
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec encode input.bvh -o motion-v2.skac --quality high --format-version 2
 python -m skac_codec inspect motion.skac
 python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg
 python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
@@ -295,8 +303,8 @@ python tools/audit_release.py .
 协议目前只覆盖已经验证过的 BVH 流程，不开放实验性的 FBX 桥。
 
 引擎运行时接入见 `RUNTIME_BETA.md`，里面说明了原生 C ABI 和 Unity/Unreal 源码适配层。
-当前 Beta 已经覆盖整段载入、同角色解码，以及通过 Profile 2.0 直接采样到不同目标骨骼；
-流式解码和引擎坐标自动转换仍是后续工作。
+当前 Beta 已能读取 v1 和独立解压的 v2 分块，覆盖同角色解码，也能通过 Profile 2.0 直接
+采样到不同目标骨骼；滑动窗口式流播放和引擎坐标自动转换仍是后续工作。
 
 ![原生同角色与不同角色运行时采样](reports/native_runtime_profile_beta.svg)
 
@@ -322,6 +330,10 @@ python tools/audit_release.py .
 公开 Codec 现在已经能真正跑通 `BVH → .skac → BVH`。格式 1.0 使用 smallest-three
 四元数编码、有界均匀位移量化、位级打包、zlib 压缩、骨架哈希、长度校验和 CRC。每次
 编码都会立刻从生成的字节解码一次，并输出旋转误差、位移误差、压缩比和每关节每帧位数。
+
+SKAC v2 在此基础上加入旋转与位移感知分配、确定性时间分段、独立分块校验和原生逐块
+打开，同时保持无需模型的确定性播放。Beta 阶段仍默认写 v1，需要通过
+`--format-version 2` 显式选择 v2。
 
 同一个 `.skac` 现在也能通过一次性冻结并锁定哈希的 Profile 输出到多个 BVH 目标骨架。
 Profile 2.0 会在播放前识别命名体系、编译层级顺序和基变换四元数；逐帧运行时复用缓冲区，

@@ -345,6 +345,27 @@ def quantize_rotation_samples(quaternions: np.ndarray, bits: int) -> np.ndarray:
     return decoded.reshape(values.shape)
 
 
+def quantize_translation_samples(
+    values: np.ndarray, bits: int, lower: float, upper: float
+) -> np.ndarray:
+    """Round-trip scalar samples through SKAC uniform translation quantization."""
+    samples = np.asarray(values, dtype=np.float64)
+    if samples.size == 0 or not np.isfinite(samples).all():
+        raise ValueError("translation samples must be non-empty and finite")
+    if not 8 <= bits <= 24:
+        raise ValueError("translation bits must be between 8 and 24")
+    if not np.isfinite(lower) or not np.isfinite(upper) or upper < lower:
+        raise ValueError("translation bounds must be finite and ordered")
+    value_range = upper - lower
+    if value_range <= 0.0:
+        return np.full(samples.shape, lower, dtype=np.float64)
+    maximum = (1 << bits) - 1
+    quantized = np.rint(
+        np.clip((samples - lower) / value_range, 0.0, 1.0) * maximum
+    ).astype(np.uint32)
+    return lower + quantized.astype(np.float64) * (value_range / maximum)
+
+
 def _encode_rotation_tracks(
     clip: MotionClip,
     joints: tuple[int, ...],
@@ -598,6 +619,12 @@ def _read_container(data: bytes) -> tuple[dict[str, Any], bytes]:
 
 
 def decode_bytes(data: bytes) -> MotionClip:
+    if len(data) >= 12 and data[:8] == MAGIC:
+        major = struct.unpack_from("<H", data, 8)[0]
+        if major == 2:
+            from .format_v2 import decode_v2_bytes
+
+            return decode_v2_bytes(data)
     metadata, raw_payload = _read_container(data)
     if metadata.get("schema") != "skac.animation" or metadata.get("schema_version") != "1.0.0":
         raise SkacFormatError("unsupported animation metadata schema")
@@ -675,6 +702,12 @@ def read_skac(path: Path) -> MotionClip:
 
 
 def inspect_bytes(data: bytes) -> dict[str, Any]:
+    if len(data) >= 12 and data[:8] == MAGIC:
+        major = struct.unpack_from("<H", data, 8)[0]
+        if major == 2:
+            from .format_v2 import inspect_v2_bytes
+
+            return inspect_v2_bytes(data)
     metadata, _ = _read_container(data)
     codec = metadata.get("codec", {})
     return {

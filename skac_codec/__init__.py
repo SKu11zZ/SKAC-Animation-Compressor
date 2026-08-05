@@ -18,6 +18,7 @@ from .format import (
     read_skac,
     write_skac,
 )
+from .format_v2 import decode_v2_bytes, encode_v2_bytes, inspect_v2_bytes, write_skac_v2
 from .pack import (
     SkacPack,
     SkacPackError,
@@ -62,14 +63,17 @@ __all__ = [
     "adaptive_segments",
     "build_adaptive_plan",
     "decode_bytes",
+    "decode_v2_bytes",
     "decode_pack",
     "encode_bytes",
+    "encode_v2_bytes",
     "encode_pack",
     "extract_fbx_to_bvh",
     "build_retarget_profile",
     "compile_retarget_profile",
     "inspect_file",
     "inspect_bytes",
+    "inspect_v2_bytes",
     "inspect_pack_bytes",
     "inspect_pack_file",
     "inject_bvh_into_fbx",
@@ -90,5 +94,6 @@ __all__ = [
     "write_adaptive_plan_svg",
     "write_bvh",
     "write_skac",
+    "write_skac_v2",
     "write_pack",
 ]

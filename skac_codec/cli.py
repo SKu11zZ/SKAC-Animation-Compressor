@@ -14,6 +14,7 @@ from .adaptive import (
 from .bvh import read_bvh, write_bvh
 from .fbx import extract_fbx_to_bvh, inject_bvh_into_fbx, validate_fbx
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
+from .format_v2 import encode_v2_bytes
 from .metrics import compression_metrics, roundtrip_metrics
 from .pack import inspect_pack_file, read_pack, write_pack
 from .quality import (
@@ -64,13 +65,24 @@ def _write_json(value: object) -> None:
 def _encode(args: argparse.Namespace) -> int:
     clip = read_bvh(args.input)
     settings = _settings(args)
-    encoded = encode_bytes(clip, settings)
+    if args.format_version == 2:
+        encoded = encode_v2_bytes(
+            clip,
+            settings,
+            min_segment_frames=(args.min_segment_frames or 8),
+            max_segment_frames=(args.max_segment_frames or 32),
+        )
+    else:
+        if args.min_segment_frames is not None or args.max_segment_frames is not None:
+            raise ValueError("segment frame options require --format-version 2")
+        encoded = encode_bytes(clip, settings)
     decoded = decode_bytes(encoded)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(encoded)
     _write_json(
         {
             "command": "encode",
+            "format_version": args.format_version,
             "quality": settings.quality_name,
             "rotation_bits": settings.rotation_bits,
             "translation_bits": settings.translation_bits,
@@ -268,6 +280,10 @@ def _fbx_validate(args: argparse.Namespace) -> int:
 
 
 def _quality_gate(args: argparse.Namespace) -> int:
+    if args.format_version == 1 and (
+        args.min_segment_frames is not None or args.max_segment_frames is not None
+    ):
+        raise ValueError("segment frame options require --format-version 2")
     source = read_bvh(args.source)
     evaluation_case = args.evaluation_case
     target_skeleton = (
@@ -303,6 +319,9 @@ def _quality_gate(args: argparse.Namespace) -> int:
         pipeline_iterations=getattr(args, "pipeline_iterations", 3),
         frame_samples=getattr(args, "frame_samples", 300),
         evaluation_case=evaluation_case,
+        format_version=args.format_version,
+        min_segment_frames=(args.min_segment_frames or 8),
+        max_segment_frames=(args.max_segment_frames or 32),
     )
     write_quality_report_json(args.output, report)
     write_quality_report_svg(args.visual, report)
@@ -333,6 +352,9 @@ def _add_quality_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--rotation-error-degrees", type=float)
     parser.add_argument("--translation-error-fraction", type=float)
     parser.add_argument("--zlib-level", type=int)
+    parser.add_argument("--format-version", type=int, choices=(1, 2), default=1)
+    parser.add_argument("--min-segment-frames", type=int)
+    parser.add_argument("--max-segment-frames", type=int)
     parser.add_argument(
         "--minimum-decode-realtime-factor", type=float, default=10.0
     )
@@ -364,6 +386,9 @@ def build_parser() -> argparse.ArgumentParser:
     encode_parser.add_argument("--rotation-error-degrees", type=float)
     encode_parser.add_argument("--translation-error-fraction", type=float)
     encode_parser.add_argument("--zlib-level", type=int)
+    encode_parser.add_argument("--format-version", type=int, choices=(1, 2), default=1)
+    encode_parser.add_argument("--min-segment-frames", type=int)
+    encode_parser.add_argument("--max-segment-frames", type=int)
     encode_parser.set_defaults(handler=_encode)
 
     decode_parser = subparsers.add_parser(
@@ -408,7 +433,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     adaptive_parser = subparsers.add_parser(
         "adaptive-plan",
-        help="plan perceptual segments and rotation bit widths for SKAC v2",
+        help="plan perceptual segments and rotation/translation bit widths for SKAC v2",
     )
     adaptive_parser.add_argument("source", type=Path, help="source BVH animation")
     adaptive_parser.add_argument("--output", "-o", type=Path, required=True)

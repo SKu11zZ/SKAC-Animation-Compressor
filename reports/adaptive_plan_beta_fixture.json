@@ -4,6 +4,13 @@
     10,
     12,
     14,
+    16
+  ],
+  "candidate_translation_bits": [
+    8,
+    10,
+    12,
+    14,
     16,
     18,
     20
@@ -55,16 +62,16 @@
   "metrics": {
     "global_position_error_max": 0.013831009300946955,
     "global_position_error_max_skeleton_height_fraction": 0.0007683894056081642,
-    "global_position_error_mean": 0.00310846353328836,
-    "root_translation_error_max": 0.0,
-    "root_translation_error_mean": 0.0,
+    "global_position_error_mean": 0.003108463533288372,
+    "root_translation_error_max": 3.552713678800501e-15,
+    "root_translation_error_mean": 2.3592239273284576e-16,
     "rotation_error_degrees_max": 0.03440401562239779,
     "rotation_error_degrees_mean": 0.020458414574315128,
-    "translation_error_max": 0.0,
-    "translation_error_mean": 0.0
+    "translation_error_max": 3.552713678800501e-15,
+    "translation_error_mean": 5.898059818321144e-17
   },
   "passed": true,
-  "plan_sha256": "891f41481c57c0015870efbc2653be49fcb881e18199e2ef9ff2b43bc11922d2",
+  "plan_sha256": "3460e8fd6ad7c74ddae95c9d067266f56c2c272786ac23853ac8e60daa94ddfe",
   "quality": "high",
   "rotation_tracks": [
     {
@@ -661,7 +668,7 @@
     }
   ],
   "schema": "skac.adaptive_plan",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "segmentation": {
     "activity_definition": "mean_joint_degrees_per_second_plus_90x_normalized_root_speed",
     "max_frames": 24,
@@ -707,7 +714,257 @@
     "planned_rotation_bits_weighted_mean": 12.30952380952381,
     "planned_rotation_key_count": 336,
     "planned_rotation_payload_bytes_pre_entropy": 2040,
+    "planned_translation_bits_weighted_mean": 8.0,
+    "planned_translation_key_count": 16,
+    "planned_translation_payload_bytes_pre_entropy": 272,
     "rotation_track_segment_count": 16,
-    "segment_count": 4
-  }
+    "segment_count": 4,
+    "translation_track_segment_count": 12
+  },
+  "translation_tracks": [
+    {
+      "axis": 0,
+      "bits": 8,
+      "end_frame_exclusive": 24,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 24,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 2,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 4.842105263157895,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 4.440892098500626e-16,
+      "retained_frames_relative_to_segment": [
+        0,
+        23
+      ],
+      "segment": 0,
+      "start_frame": 0
+    },
+    {
+      "axis": 1,
+      "bits": 8,
+      "end_frame_exclusive": 24,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 0,
+      "start_frame": 0
+    },
+    {
+      "axis": 2,
+      "bits": 8,
+      "end_frame_exclusive": 24,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 0,
+      "start_frame": 0
+    },
+    {
+      "axis": 0,
+      "bits": 8,
+      "end_frame_exclusive": 48,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 24,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 2,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 9.894736842105262,
+      "minimum": 5.052631578947368,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 1.7763568394002505e-15,
+      "retained_frames_relative_to_segment": [
+        0,
+        23
+      ],
+      "segment": 1,
+      "start_frame": 24
+    },
+    {
+      "axis": 1,
+      "bits": 8,
+      "end_frame_exclusive": 48,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 1,
+      "start_frame": 24
+    },
+    {
+      "axis": 2,
+      "bits": 8,
+      "end_frame_exclusive": 48,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 1,
+      "start_frame": 24
+    },
+    {
+      "axis": 0,
+      "bits": 8,
+      "end_frame_exclusive": 72,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 24,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 2,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 14.94736842105263,
+      "minimum": 10.105263157894736,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 1.7763568394002505e-15,
+      "retained_frames_relative_to_segment": [
+        0,
+        23
+      ],
+      "segment": 2,
+      "start_frame": 48
+    },
+    {
+      "axis": 1,
+      "bits": 8,
+      "end_frame_exclusive": 72,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 2,
+      "start_frame": 48
+    },
+    {
+      "axis": 2,
+      "bits": 8,
+      "end_frame_exclusive": 72,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 2,
+      "start_frame": 48
+    },
+    {
+      "axis": 0,
+      "bits": 8,
+      "end_frame_exclusive": 96,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 24,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 2,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 20.0,
+      "minimum": 15.157894736842104,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 3.552713678800501e-15,
+      "retained_frames_relative_to_segment": [
+        0,
+        23
+      ],
+      "segment": 3,
+      "start_frame": 72
+    },
+    {
+      "axis": 1,
+      "bits": 8,
+      "end_frame_exclusive": 96,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 3,
+      "start_frame": 72
+    },
+    {
+      "axis": 2,
+      "bits": 8,
+      "end_frame_exclusive": 96,
+      "error_budget": 0.0005196152422706633,
+      "estimated_payload_bytes_pre_entropy": 22,
+      "joint": 0,
+      "joint_name": "Root",
+      "key_count": 1,
+      "key_reduction_threshold": 0.0003377499074759312,
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "perceptual_importance": 1.0,
+      "reconstructed_error_max": 0.0,
+      "retained_frames_relative_to_segment": [
+        0
+      ],
+      "segment": 3,
+      "start_frame": 72
+    }
+  ]
 }

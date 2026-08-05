@@ -28,7 +28,9 @@ namespace {
 
 constexpr size_t kPrefixSize = 44;
 constexpr uint32_t kFlagZlib = 1;
+constexpr uint32_t kFlagChunkedZlib = 2;
 constexpr uint16_t kFormatMajor = 1;
+constexpr uint16_t kFormatMajorV2 = 2;
 constexpr uint16_t kFormatMinor = 0;
 constexpr uint64_t kMaxMetadataBytes = 8ull * 1024ull * 1024ull;
 constexpr uint64_t kMaxRawPayloadBytes = 512ull * 1024ull * 1024ull;
@@ -461,6 +463,29 @@ public:
         return result;
     }
 
+    uint8_t u8() {
+        require(1);
+        return data_[position_++];
+    }
+
+    uint16_t u16() {
+        require(2);
+        const uint16_t result = read_u16(data_ + position_);
+        position_ += 2;
+        return result;
+    }
+
+    double f64() {
+        require(8);
+        const uint64_t encoded = read_u64(data_ + position_);
+        position_ += 8;
+        double result = 0.0;
+        static_assert(sizeof(result) == sizeof(encoded), "SKAC requires 64-bit doubles");
+        SKAC_STANDARD::memcpy(&result, &encoded, sizeof(result));
+        if (!SKAC_STANDARD::isfinite(result)) fail(SKAC_INVALID_FORMAT, "track float is not finite");
+        return result;
+    }
+
     uint32_t varuint() {
         uint32_t result = 0;
         uint32_t shift = 0;
@@ -656,23 +681,7 @@ SKAC_STANDARD::vector<SKAC_STANDARD::pair<uint32_t, uint32_t>> expected_translat
     return result;
 }
 
-SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
-    const char* metadata_json,
-    size_t metadata_size,
-    const uint8_t* raw_payload,
-    size_t raw_payload_size
-) {
-    if (metadata_json == nullptr || (raw_payload == nullptr && raw_payload_size != 0)) {
-        fail(SKAC_INVALID_ARGUMENT, "raw decoder arguments are null");
-    }
-    if (metadata_size == 0 || metadata_size > kMaxMetadataBytes || raw_payload_size > kMaxRawPayloadBytes) {
-        fail(SKAC_INVALID_FORMAT, "metadata or raw payload exceeds format limits");
-    }
-    const Json root = JsonParser(metadata_json, metadata_size).parse();
-    if (string_value(member(root, "schema"), "schema") != "skac.animation" ||
-        string_value(member(root, "schema_version"), "schema_version") != "1.0.0") {
-        fail(SKAC_UNSUPPORTED, "unsupported animation metadata schema");
-    }
+SKAC_STANDARD::unique_ptr<skac_decoder_impl> initialize_decoder(const Json& root) {
     auto decoder = SKAC_STANDARD::make_unique<skac_decoder_impl>();
     decoder->frame_count = u32_value(member(root, "frame_count"), "frame_count");
     decoder->frame_time = number_value(member(root, "frame_time"), "frame_time");
@@ -699,6 +708,27 @@ SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
             decoder->translations[pose_index(*decoder, frame, joint)] = decoder->skeleton.offsets[joint];
         }
     }
+    return decoder;
+}
+
+SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
+    const char* metadata_json,
+    size_t metadata_size,
+    const uint8_t* raw_payload,
+    size_t raw_payload_size
+) {
+    if (metadata_json == nullptr || (raw_payload == nullptr && raw_payload_size != 0)) {
+        fail(SKAC_INVALID_ARGUMENT, "raw decoder arguments are null");
+    }
+    if (metadata_size == 0 || metadata_size > kMaxMetadataBytes || raw_payload_size > kMaxRawPayloadBytes) {
+        fail(SKAC_INVALID_FORMAT, "metadata or raw payload exceeds format limits");
+    }
+    const Json root = JsonParser(metadata_json, metadata_size).parse();
+    if (string_value(member(root, "schema"), "schema") != "skac.animation" ||
+        string_value(member(root, "schema_version"), "schema_version") != "1.0.0") {
+        fail(SKAC_UNSUPPORTED, "unsupported animation metadata schema");
+    }
+    auto decoder = initialize_decoder(root);
 
     const Json& codec = member(root, "codec");
     if (string_value(member(codec, "name"), "codec.name") != "key_reduced_smallest_three_v1") {
@@ -791,6 +821,283 @@ SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
         }
     }
     translation_cursor.finished();
+    return decoder;
+}
+
+struct V2Chunk {
+    SKAC_STANDARD::string id;
+    SKAC_STANDARD::string role;
+    bool required = false;
+    size_t offset = 0;
+    size_t compressed_size = 0;
+    size_t raw_size = 0;
+    uint32_t crc = 0;
+    uint32_t raw_crc = 0;
+};
+
+struct V2Segment {
+    uint32_t index = 0;
+    uint32_t start = 0;
+    uint32_t end = 0;
+    SKAC_STANDARD::string rotation_chunk;
+    SKAC_STANDARD::string translation_chunk;
+};
+
+SKAC_STANDARD::vector<V2Chunk> parse_v2_chunks(
+    const Json& root,
+    size_t payload_size,
+    size_t declared_raw_size
+) {
+    SKAC_STANDARD::vector<V2Chunk> chunks;
+    SKAC_STANDARD::map<SKAC_STANDARD::string, bool> ids;
+    size_t expected_offset = 0;
+    size_t raw_total = 0;
+    for (const Json& item : array_value(member(root, "chunks"), "chunks")) {
+        V2Chunk chunk;
+        chunk.id = string_value(member(item, "id"), "chunk.id");
+        chunk.role = string_value(member(item, "role"), "chunk.role");
+        chunk.required = boolean_value(member(item, "required"), "chunk.required");
+        if (string_value(member(item, "compression"), "chunk.compression") != "zlib") {
+            fail(SKAC_UNSUPPORTED, "v2 chunk compression is unsupported");
+        }
+        chunk.offset = u32_value(member(item, "offset"), "chunk.offset");
+        chunk.compressed_size = u32_value(member(item, "compressed_bytes"), "chunk.compressed_bytes");
+        chunk.raw_size = u32_value(member(item, "raw_bytes"), "chunk.raw_bytes");
+        chunk.crc = u32_value(member(item, "crc32"), "chunk.crc32");
+        chunk.raw_crc = u32_value(member(item, "raw_crc32"), "chunk.raw_crc32");
+        if (chunk.id.empty() || !ids.emplace(chunk.id, true).second) {
+            fail(SKAC_INVALID_FORMAT, "v2 chunk ids must be unique and non-empty");
+        }
+        if (chunk.required && chunk.role != "segment.index" &&
+            chunk.role != "base.rotation" && chunk.role != "base.translation") {
+            fail(SKAC_UNSUPPORTED, "v2 file contains an unknown required chunk role");
+        }
+        if (chunk.offset != expected_offset || chunk.compressed_size == 0 ||
+            chunk.compressed_size > payload_size - expected_offset ||
+            chunk.raw_size > kMaxRawPayloadBytes - raw_total) {
+            fail(SKAC_INVALID_FORMAT, "v2 chunk directory range is invalid");
+        }
+        expected_offset += chunk.compressed_size;
+        raw_total += chunk.raw_size;
+        chunks.push_back(SKAC_STANDARD::move(chunk));
+    }
+    if (chunks.empty() || expected_offset != payload_size || raw_total != declared_raw_size) {
+        fail(SKAC_INVALID_FORMAT, "v2 chunk directory does not cover the container");
+    }
+    return chunks;
+}
+
+const V2Chunk& find_v2_chunk(
+    const SKAC_STANDARD::vector<V2Chunk>& chunks,
+    const SKAC_STANDARD::string& id
+) {
+    const auto found = SKAC_STANDARD::find_if(
+        chunks.begin(), chunks.end(), [&](const V2Chunk& item) { return item.id == id; }
+    );
+    if (found == chunks.end()) fail(SKAC_INVALID_FORMAT, "v2 segment references a missing chunk");
+    return *found;
+}
+
+SKAC_STANDARD::vector<uint8_t> inflate_v2_chunk(
+    const uint8_t* payload,
+    const V2Chunk& chunk,
+    skac_inflate_fn inflate,
+    void* user_data
+) {
+    const uint8_t* compressed = payload + chunk.offset;
+    if (crc32_bytes(compressed, chunk.compressed_size) != chunk.crc) {
+        fail(SKAC_INVALID_FORMAT, "v2 compressed chunk CRC does not match");
+    }
+    SKAC_STANDARD::vector<uint8_t> raw(chunk.raw_size);
+    const skac_result result = inflate(
+        compressed, chunk.compressed_size, raw.data(), raw.size(), user_data
+    );
+    if (result != SKAC_OK) fail(result, "host v2 chunk inflation failed");
+    if (crc32_bytes(raw.data(), raw.size()) != chunk.raw_crc) {
+        fail(SKAC_INVALID_FORMAT, "v2 raw chunk CRC does not match");
+    }
+    return raw;
+}
+
+SKAC_STANDARD::vector<V2Segment> parse_v2_segments(const Json& root, uint32_t frame_count) {
+    SKAC_STANDARD::vector<V2Segment> segments;
+    uint32_t expected_start = 0;
+    for (const Json& item : array_value(member(root, "segments"), "segments")) {
+        V2Segment segment;
+        segment.index = u32_value(member(item, "index"), "segment.index");
+        segment.start = u32_value(member(item, "start_frame"), "segment.start_frame");
+        segment.end = u32_value(member(item, "end_frame_exclusive"), "segment.end_frame_exclusive");
+        segment.rotation_chunk = string_value(member(item, "rotation_chunk"), "segment.rotation_chunk");
+        segment.translation_chunk = string_value(member(item, "translation_chunk"), "segment.translation_chunk");
+        if (segment.index != segments.size() || segment.start != expected_start ||
+            segment.end <= segment.start || segment.end > frame_count ||
+            segment.rotation_chunk.empty() || segment.translation_chunk.empty()) {
+            fail(SKAC_INVALID_FORMAT, "v2 segment directory is inconsistent");
+        }
+        expected_start = segment.end;
+        segments.push_back(SKAC_STANDARD::move(segment));
+    }
+    if (segments.empty() || expected_start != frame_count) {
+        fail(SKAC_INVALID_FORMAT, "v2 segments do not cover every frame");
+    }
+    return segments;
+}
+
+void require_matching_segments(
+    const SKAC_STANDARD::vector<V2Segment>& left,
+    const SKAC_STANDARD::vector<V2Segment>& right
+) {
+    if (left.size() != right.size()) fail(SKAC_INVALID_FORMAT, "v2 segment index differs from metadata");
+    for (size_t index = 0; index < left.size(); ++index) {
+        if (left[index].index != right[index].index || left[index].start != right[index].start ||
+            left[index].end != right[index].end ||
+            left[index].rotation_chunk != right[index].rotation_chunk ||
+            left[index].translation_chunk != right[index].translation_chunk) {
+            fail(SKAC_INVALID_FORMAT, "v2 segment index differs from metadata");
+        }
+    }
+}
+
+SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_v2_container(
+    const Json& root,
+    const uint8_t* payload,
+    size_t payload_size,
+    size_t declared_raw_size,
+    skac_inflate_fn inflate,
+    void* user_data
+) {
+    if (string_value(member(root, "schema"), "schema") != "skac.animation" ||
+        string_value(member(root, "schema_version"), "schema_version") != "2.0.0") {
+        fail(SKAC_UNSUPPORTED, "unsupported v2 animation metadata schema");
+    }
+    auto decoder = initialize_decoder(root);
+    const Json& codec = member(root, "codec");
+    if (string_value(member(codec, "name"), "codec.name") != "skac_v2_adaptive_segmented") {
+        fail(SKAC_UNSUPPORTED, "unsupported v2 codec payload");
+    }
+    const auto rotation_joints = expected_rotation_joints(decoder->skeleton);
+    if (u32_array(member(codec, "rotation_joints"), "rotation_joints") != rotation_joints) {
+        fail(SKAC_INVALID_FORMAT, "v2 rotation joints do not match the skeleton");
+    }
+    SKAC_STANDARD::vector<SKAC_STANDARD::pair<uint32_t, uint32_t>> declared_components;
+    for (const Json& item : array_value(member(codec, "translation_components"), "translation_components")) {
+        const auto& pair = array_value(item, "translation component");
+        if (pair.size() != 2) fail(SKAC_INVALID_FORMAT, "translation component must contain joint and axis");
+        declared_components.emplace_back(
+            u32_value(pair[0], "translation joint"), u32_value(pair[1], "translation axis")
+        );
+    }
+    const auto translation_components = expected_translation_components(decoder->skeleton);
+    if (declared_components != translation_components) {
+        fail(SKAC_INVALID_FORMAT, "v2 translation components do not match the skeleton");
+    }
+
+    const auto chunks = parse_v2_chunks(root, payload_size, declared_raw_size);
+    const auto segments = parse_v2_segments(root, decoder->frame_count);
+    const V2Chunk& index_chunk = find_v2_chunk(chunks, "segment.index");
+    if (index_chunk.role != "segment.index") fail(SKAC_INVALID_FORMAT, "v2 segment index role is invalid");
+    const auto index_raw = inflate_v2_chunk(payload, index_chunk, inflate, user_data);
+    const Json index_root = JsonParser(
+        reinterpret_cast<const char*>(index_raw.data()), index_raw.size()
+    ).parse();
+    if (string_value(member(index_root, "schema"), "segment schema") != "skac.segment_index" ||
+        string_value(member(index_root, "schema_version"), "segment schema version") != "1.0.0") {
+        fail(SKAC_INVALID_FORMAT, "v2 segment index schema is invalid");
+    }
+    require_matching_segments(segments, parse_v2_segments(index_root, decoder->frame_count));
+
+    for (const V2Segment& segment : segments) {
+        const uint32_t segment_frames = segment.end - segment.start;
+        const V2Chunk& rotation_chunk = find_v2_chunk(chunks, segment.rotation_chunk);
+        const V2Chunk& translation_chunk = find_v2_chunk(chunks, segment.translation_chunk);
+        if (rotation_chunk.role != "base.rotation" || translation_chunk.role != "base.translation") {
+            fail(SKAC_INVALID_FORMAT, "v2 segment references the wrong chunk role");
+        }
+
+        const auto rotation_raw = inflate_v2_chunk(payload, rotation_chunk, inflate, user_data);
+        Cursor rotation_cursor(rotation_raw.data(), rotation_raw.size());
+        if (SKAC_STANDARD::memcmp(rotation_cursor.take(4), "RSEG", 4) != 0 ||
+            rotation_cursor.u16() != 1 || rotation_cursor.u32() != rotation_joints.size()) {
+            fail(SKAC_INVALID_FORMAT, "v2 rotation chunk header is inconsistent");
+        }
+        for (uint32_t expected_joint : rotation_joints) {
+            const uint32_t joint = rotation_cursor.u32();
+            const uint32_t bits_per_component = rotation_cursor.u8();
+            const uint32_t key_count = rotation_cursor.u32();
+            if (joint != expected_joint || bits_per_component < 8 || bits_per_component > 20) {
+                fail(SKAC_INVALID_FORMAT, "v2 rotation track table is inconsistent");
+            }
+            const auto indices = decode_indices(rotation_cursor, key_count, segment_frames);
+            const size_t byte_count = packed_bytes(key_count, 2 + 3 * bits_per_component);
+            BitReader bit_reader(rotation_cursor.take(byte_count), byte_count);
+            SKAC_STANDARD::vector<Quaternion> values;
+            values.reserve(key_count);
+            for (uint32_t key = 0; key < key_count; ++key) {
+                values.push_back(decode_quaternion(bit_reader, bits_per_component));
+            }
+            size_t interpolation_segment = 0;
+            for (uint32_t frame = 0; frame < segment_frames; ++frame) {
+                Quaternion value = values.front();
+                if (values.size() > 1) {
+                    while (interpolation_segment + 1 < indices.size() - 1 &&
+                           frame > indices[interpolation_segment + 1]) {
+                        ++interpolation_segment;
+                    }
+                    const uint32_t start = indices[interpolation_segment];
+                    const uint32_t end = indices[interpolation_segment + 1];
+                    const double amount = static_cast<double>(frame - start) / static_cast<double>(end - start);
+                    value = slerp(values[interpolation_segment], values[interpolation_segment + 1], amount);
+                }
+                decoder->rotations[pose_index(*decoder, segment.start + frame, joint)] = value;
+            }
+        }
+        rotation_cursor.finished();
+
+        const auto translation_raw = inflate_v2_chunk(payload, translation_chunk, inflate, user_data);
+        Cursor translation_cursor(translation_raw.data(), translation_raw.size());
+        if (SKAC_STANDARD::memcmp(translation_cursor.take(4), "TSEG", 4) != 0 ||
+            translation_cursor.u16() != 1 || translation_cursor.u32() != translation_components.size()) {
+            fail(SKAC_INVALID_FORMAT, "v2 translation chunk header is inconsistent");
+        }
+        for (const auto& expected_component : translation_components) {
+            const uint32_t joint = translation_cursor.u32();
+            const uint32_t axis = translation_cursor.u8();
+            const uint32_t bits_per_value = translation_cursor.u8();
+            const uint32_t key_count = translation_cursor.u32();
+            const double lower = translation_cursor.f64();
+            const double upper = translation_cursor.f64();
+            if (SKAC_STANDARD::make_pair(joint, axis) != expected_component ||
+                bits_per_value < 8 || bits_per_value > 24 || upper < lower) {
+                fail(SKAC_INVALID_FORMAT, "v2 translation track table is inconsistent");
+            }
+            const auto indices = decode_indices(translation_cursor, key_count, segment_frames);
+            const size_t byte_count = packed_bytes(key_count, bits_per_value);
+            BitReader bit_reader(translation_cursor.take(byte_count), byte_count);
+            const double maximum = static_cast<double>((uint64_t{1} << bits_per_value) - 1);
+            SKAC_STANDARD::vector<double> values;
+            values.reserve(key_count);
+            for (uint32_t key = 0; key < key_count; ++key) {
+                values.push_back(lower + (static_cast<double>(bit_reader.read(bits_per_value)) / maximum) * (upper - lower));
+            }
+            size_t interpolation_segment = 0;
+            for (uint32_t frame = 0; frame < segment_frames; ++frame) {
+                double value = values.front();
+                if (values.size() > 1) {
+                    while (interpolation_segment + 1 < indices.size() - 1 &&
+                           frame > indices[interpolation_segment + 1]) {
+                        ++interpolation_segment;
+                    }
+                    const uint32_t start = indices[interpolation_segment];
+                    const uint32_t end = indices[interpolation_segment + 1];
+                    const double amount = static_cast<double>(frame - start) / static_cast<double>(end - start);
+                    value = values[interpolation_segment] + amount *
+                        (values[interpolation_segment + 1] - values[interpolation_segment]);
+                }
+                decoder->translations[pose_index(*decoder, segment.start + frame, joint)][axis] = value;
+            }
+        }
+        translation_cursor.finished();
+    }
     return decoder;
 }
 
@@ -1170,8 +1477,9 @@ skac_result skac_decoder_open_container(
         const uint64_t raw_size = read_u64(container + 28);
         const uint32_t metadata_crc = read_u32(container + 36);
         const uint32_t payload_crc = read_u32(container + 40);
-        if (major != kFormatMajor || minor > kFormatMinor) fail(SKAC_UNSUPPORTED, "container version is unsupported");
-        if (flags != kFlagZlib) fail(SKAC_UNSUPPORTED, "container flags are unsupported");
+        const bool is_v1 = major == kFormatMajor && minor <= kFormatMinor && flags == kFlagZlib;
+        const bool is_v2 = major == kFormatMajorV2 && minor <= kFormatMinor && flags == kFlagChunkedZlib;
+        if (!is_v1 && !is_v2) fail(SKAC_UNSUPPORTED, "container version or flags are unsupported");
         if (metadata_size > kMaxMetadataBytes || raw_size > kMaxRawPayloadBytes) fail(SKAC_INVALID_FORMAT, "container declarations exceed limits");
         if (payload_size > SKAC_STANDARD::numeric_limits<size_t>::max() || raw_size > SKAC_STANDARD::numeric_limits<size_t>::max()) {
             fail(SKAC_INVALID_FORMAT, "container size exceeds this platform");
@@ -1182,19 +1490,33 @@ skac_result skac_decoder_open_container(
         const uint8_t* payload = metadata + metadata_size;
         if (crc32_bytes(metadata, metadata_size) != metadata_crc) fail(SKAC_INVALID_FORMAT, "metadata CRC does not match");
         if (crc32_bytes(payload, static_cast<size_t>(payload_size)) != payload_crc) fail(SKAC_INVALID_FORMAT, "payload CRC does not match");
-        SKAC_STANDARD::vector<uint8_t> raw(static_cast<size_t>(raw_size));
-        const skac_result inflate_result = inflate(
-            payload,
-            static_cast<size_t>(payload_size),
-            raw.data(),
-            raw.size(),
-            user_data
-        );
-        if (inflate_result != SKAC_OK) fail(inflate_result, "host zlib inflation failed");
         auto result = SKAC_STANDARD::make_unique<skac_decoder>();
-        result->value = decode_raw(
-            reinterpret_cast<const char*>(metadata), metadata_size, raw.data(), raw.size()
-        );
+        if (is_v2) {
+            const Json root = JsonParser(
+                reinterpret_cast<const char*>(metadata), metadata_size
+            ).parse();
+            result->value = decode_v2_container(
+                root,
+                payload,
+                static_cast<size_t>(payload_size),
+                static_cast<size_t>(raw_size),
+                inflate,
+                user_data
+            );
+        } else {
+            SKAC_STANDARD::vector<uint8_t> raw(static_cast<size_t>(raw_size));
+            const skac_result inflate_result = inflate(
+                payload,
+                static_cast<size_t>(payload_size),
+                raw.data(),
+                raw.size(),
+                user_data
+            );
+            if (inflate_result != SKAC_OK) fail(inflate_result, "host zlib inflation failed");
+            result->value = decode_raw(
+                reinterpret_cast<const char*>(metadata), metadata_size, raw.data(), raw.size()
+            );
+        }
         *out_decoder = result.release();
     });
 }

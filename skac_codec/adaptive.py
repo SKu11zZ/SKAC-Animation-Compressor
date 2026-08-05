@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from html import escape
 from pathlib import Path
 from typing import Any, Sequence
@@ -11,10 +12,13 @@ import numpy as np
 from .format import (
     CodecSettings,
     _interpolate_rotation_track,
+    _interpolate_scalar_track,
     _rotation_joint_indices,
     _rotation_key_indices,
+    _scalar_key_indices,
     encode_bytes,
     quantize_rotation_samples,
+    quantize_translation_samples,
 )
 from .math3d import quaternion_angular_error_degrees
 from .metrics import roundtrip_metrics
@@ -24,8 +28,9 @@ from .retarget import _skeleton_height
 
 
 PLAN_SCHEMA = "skac.adaptive_plan"
-PLAN_VERSION = "1.0.0"
+PLAN_VERSION = "1.1.0"
 DEFAULT_ROTATION_BITS = (8, 10, 12, 14, 16, 18, 20)
+DEFAULT_TRANSLATION_BITS = (8, 10, 12, 14, 16, 18, 20, 22, 24)
 
 
 def _canonical_json(value: object) -> bytes:
@@ -235,6 +240,65 @@ def _plan_rotation_track(
     return reconstructed, record
 
 
+def _plan_translation_track(
+    track: np.ndarray,
+    error_budget: float,
+    candidate_bits: Sequence[int],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    lower = float(np.min(track))
+    upper = float(np.max(track))
+    options: list[tuple[int, float, int, int, float, np.ndarray, np.ndarray]] = []
+    for threshold_scale in (0.65, 0.45, 0.25, 0.0):
+        threshold = error_budget * threshold_scale
+        indices = (
+            np.arange(track.shape[0], dtype=np.int64)
+            if threshold_scale == 0.0
+            else _scalar_key_indices(track, threshold)
+        )
+        for bits in candidate_bits:
+            values = quantize_translation_samples(
+                track[indices], int(bits), lower, upper
+            )
+            reconstructed = _interpolate_scalar_track(
+                track.shape[0], indices, values
+            )
+            error = float(np.max(np.abs(track - reconstructed)))
+            if error <= error_budget + 1e-12:
+                estimated_bits = (
+                    32
+                    + _index_bytes(indices) * 8
+                    + len(indices) * int(bits)
+                    + 128
+                )
+                options.append(
+                    (
+                        estimated_bits,
+                        error,
+                        int(bits),
+                        len(indices),
+                        threshold,
+                        indices,
+                        reconstructed,
+                    )
+                )
+    if not options:
+        raise ValueError("no translation plan satisfies the requested error budget")
+    selected = min(options, key=lambda item: (item[0], item[1], item[2], item[3]))
+    estimated_bits, error, bits, key_count, threshold, indices, reconstructed = selected
+    record = {
+        "bits": bits,
+        "error_budget": float(error_budget),
+        "estimated_payload_bytes_pre_entropy": (estimated_bits + 7) // 8,
+        "key_count": key_count,
+        "key_reduction_threshold": float(threshold),
+        "minimum": lower,
+        "maximum": upper,
+        "reconstructed_error_max": error,
+        "retained_frames_relative_to_segment": indices.tolist(),
+    }
+    return reconstructed, record
+
+
 def build_adaptive_plan(
     clip: MotionClip,
     *,
@@ -242,11 +306,29 @@ def build_adaptive_plan(
     min_segment_frames: int = 8,
     max_segment_frames: int = 32,
     candidate_rotation_bits: Sequence[int] = DEFAULT_ROTATION_BITS,
+    candidate_translation_bits: Sequence[int] = DEFAULT_TRANSLATION_BITS,
 ) -> tuple[dict[str, Any], MotionClip]:
     settings = settings or CodecSettings.preset("high")
-    candidate_bits = tuple(sorted({int(item) for item in candidate_rotation_bits}))
+    candidate_bits = tuple(
+        sorted(
+            {int(item) for item in candidate_rotation_bits if int(item) <= settings.rotation_bits}
+            | {settings.rotation_bits}
+        )
+    )
     if not candidate_bits or any(item < 8 or item > 20 for item in candidate_bits):
         raise ValueError("candidate rotation bits must be between 8 and 20")
+    translation_bits = tuple(
+        sorted(
+            {
+                int(item)
+                for item in candidate_translation_bits
+                if int(item) <= settings.translation_bits
+            }
+            | {settings.translation_bits}
+        )
+    )
+    if not translation_bits or any(item < 8 or item > 24 for item in translation_bits):
+        raise ValueError("candidate translation bits must be between 8 and 24")
 
     importance = joint_perceptual_importance(clip.skeleton)
     segments = adaptive_segments(
@@ -254,7 +336,9 @@ def build_adaptive_plan(
     )
     activity = _motion_activity(clip)
     rotation_joints = _rotation_joint_indices(clip.skeleton)
+    translation_components = clip.skeleton.animated_translation_components
     thresholds = QualityThresholds.for_settings(settings)
+    quality_height = _skeleton_height(clip.skeleton, 1)
 
     reconstructed_rotations = clip.local_rotations.copy()
     track_records: list[dict[str, Any]] = []
@@ -280,14 +364,42 @@ def build_adaptive_plan(
                 }
             )
 
+    reconstructed_translations = clip.local_translations.copy()
+    translation_records: list[dict[str, Any]] = []
+    base_translation_budget = (
+        quality_height * thresholds.max_codec_global_position_fraction * 0.1
+        / math.sqrt(3.0)
+    )
+    for segment_index, (start, end) in enumerate(segments):
+        for joint, axis in translation_components:
+            weight = float(importance[joint])
+            error_budget = base_translation_budget * (1.0 - 0.5 * weight)
+            reconstructed, record = _plan_translation_track(
+                clip.local_translations[start:end, joint, axis],
+                error_budget,
+                translation_bits,
+            )
+            reconstructed_translations[start:end, joint, axis] = reconstructed
+            translation_records.append(
+                {
+                    "segment": segment_index,
+                    "start_frame": start,
+                    "end_frame_exclusive": end,
+                    "joint": joint,
+                    "joint_name": clip.skeleton.names[joint],
+                    "axis": axis,
+                    "perceptual_importance": weight,
+                    **record,
+                }
+            )
+
     reconstructed_clip = MotionClip(
         skeleton=clip.skeleton,
         local_rotations=reconstructed_rotations,
-        local_translations=clip.local_translations,
+        local_translations=reconstructed_translations,
         frame_time=clip.frame_time,
     )
     metrics = roundtrip_metrics(clip, reconstructed_clip)
-    quality_height = _skeleton_height(clip.skeleton, 1)
     global_fraction = metrics["global_position_error_max"] / quality_height
     checks = [
         {
@@ -316,6 +428,18 @@ def build_adaptive_plan(
         if total_keys
         else 0.0
     )
+    total_translation_keys = sum(
+        int(item["key_count"]) for item in translation_records
+    )
+    weighted_translation_bits = (
+        sum(
+            int(item["bits"]) * int(item["key_count"])
+            for item in translation_records
+        )
+        / total_translation_keys
+        if total_translation_keys
+        else 0.0
+    )
     segment_records = [
         {
             "index": index,
@@ -337,6 +461,7 @@ def build_adaptive_plan(
         "skeleton_sha256": clip.skeleton.signature(),
         "quality": settings.quality_name,
         "candidate_rotation_bits": list(candidate_bits),
+        "candidate_translation_bits": list(translation_bits),
         "segmentation": {
             "min_frames": min_segment_frames,
             "max_frames": max_segment_frames,
@@ -357,6 +482,7 @@ def build_adaptive_plan(
             for joint in rotation_joints
         ],
         "rotation_tracks": track_records,
+        "translation_tracks": translation_records,
         "summary": {
             "baseline_skac_v1_bytes": len(encode_bytes(clip, settings)),
             "planned_rotation_payload_bytes_pre_entropy": sum(
@@ -366,6 +492,15 @@ def build_adaptive_plan(
             "planned_rotation_key_count": total_keys,
             "planned_rotation_bits_weighted_mean": float(weighted_bits),
             "rotation_track_segment_count": len(track_records),
+            "planned_translation_payload_bytes_pre_entropy": sum(
+                int(item["estimated_payload_bytes_pre_entropy"])
+                for item in translation_records
+            ),
+            "planned_translation_key_count": total_translation_keys,
+            "planned_translation_bits_weighted_mean": float(
+                weighted_translation_bits
+            ),
+            "translation_track_segment_count": len(translation_records),
             "segment_count": len(segments),
         },
         "metrics": {
@@ -426,8 +561,16 @@ def write_adaptive_plan_svg(path: Path, report: dict[str, Any]) -> None:
     ]
     cards = [
         ("Segments / 分段", str(summary["segment_count"])),
-        ("Mean bits / 平均位宽", f'{summary["planned_rotation_bits_weighted_mean"]:.2f}'),
-        ("Rotation keys / 旋转关键帧", str(summary["planned_rotation_key_count"])),
+        (
+            "Mean bits R/T / 旋转·位移平均位宽",
+            f'{summary["planned_rotation_bits_weighted_mean"]:.2f} / '
+            f'{summary["planned_translation_bits_weighted_mean"]:.2f}',
+        ),
+        (
+            "Keys R/T / 旋转·位移关键帧",
+            f'{summary["planned_rotation_key_count"]} / '
+            f'{summary["planned_translation_key_count"]}',
+        ),
         ("Max rotation error / 最大旋转误差", f'{metrics["rotation_error_degrees_max"]:.5f}°'),
     ]
     for index, (label, value) in enumerate(cards):
@@ -472,7 +615,7 @@ def write_adaptive_plan_svg(path: Path, report: dict[str, Any]) -> None:
     parts.extend(
         [
             f'<line x1="52" y1="{footer_y - 18}" x2="1228" y2="{footer_y - 18}" stroke="#d4d1cb"/>',
-            f'<text x="52" y="{footer_y}" class="small">Planned payload is pre-entropy rotation data only; it is not reported as final compression ratio.</text>',
+            f'<text x="52" y="{footer_y}" class="small">Planned payload covers pre-entropy rotation and translation data; it is not a final compression ratio.</text>',
             f'<text x="1228" y="{footer_y}" text-anchor="end" class="small">Plan {escape(str(report["plan_sha256"])[:12])}</text>',
             "</svg>",
         ]

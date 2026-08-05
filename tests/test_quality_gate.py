@@ -40,7 +40,7 @@ class QualityGateTests(unittest.TestCase):
             svg = svg_path.read_text(encoding="utf-8")
             ElementTree.parse(svg_path)
         self.assertTrue(restored["passed"])
-        self.assertIn("SKAC Different character - compiled Profile playback Gate", svg)
+        self.assertIn("SKAC v1 - Different character - compiled Profile playback Gate", svg)
         self.assertNotIn("<script", svg.casefold())
 
     def test_same_character_gate_bypasses_profile_runtime(self) -> None:
@@ -62,6 +62,26 @@ class QualityGateTests(unittest.TestCase):
         check_ids = {item["id"] for item in report["checks"]}
         self.assertNotIn("profile_core_coverage", check_ids)
         self.assertNotIn("pipeline_realtime_factor", check_ids)
+
+    def test_v2_gate_uses_the_chunked_codec_and_labels_the_visual(self) -> None:
+        source = source_clip()
+        report = run_quality_gate(
+            source,
+            source.skeleton,
+            settings=CodecSettings.preset("high"),
+            decode_iterations=1,
+            evaluation_case="same_character",
+            format_version=2,
+            min_segment_frames=2,
+            max_segment_frames=3,
+        )
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["codec"]["format_version"], 2)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "v2.svg"
+            write_quality_report_svg(path, report)
+            svg = path.read_text(encoding="utf-8")
+        self.assertIn("SKAC v2 - Same character - direct Codec decode Gate", svg)
 
     def test_same_character_gate_rejects_a_different_skeleton(self) -> None:
         with self.assertRaisesRegex(ValueError, "identical source and target skeletons"):

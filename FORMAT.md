@@ -1,4 +1,4 @@
-# `.skac` animation format 1.0
+# `.skac` animation formats
 
 This document describes the first public SKAC animation container. Multi-byte integers
 use little-endian byte order. A file contains a fixed prefix, UTF-8 JSON metadata, and
@@ -87,26 +87,36 @@ Minor versions may add metadata fields without changing existing decoding semant
 Changing payload interpretation, transform conventions, or required fields requires a
 new major version.
 
-## SKAC v2 Beta boundary
+## SKAC v2 Beta
 
-The current encoder still emits SKAC v1. SKAC v2 is reserved for the deterministic,
-chunked evolution of the same Codec. It does not turn generation into a required decode
-step and it does not change the meaning of an authored clip.
+SKAC v2 is the deterministic, chunked evolution of the same Codec. It does not require
+a model and does not change the meaning of an authored clip. Use
+`skac encode --format-version 2` to write it; the Python reader and C++17 runtime accept
+both v1 and v2.
 
-The v2 payload is divided into independently checksummed chunks described by a
-canonical metadata directory. The frozen chunk roles are:
+The fixed prefix keeps the same 44-byte layout with major version `2` and flags value
+`2`. The payload is a concatenation of independently zlib-compressed chunks. Canonical
+metadata contains an ordered directory with each chunk's id, role, required flag,
+offset, compressed and raw sizes, plus CRC-32 values for both representations. The
+container also retains a CRC over the complete compressed payload.
 
-- `base.rotation` and `base.translation`: sufficient for deterministic playback;
-- `segment.index`: random-access frame ranges and their required base chunks;
-- `refinement.rotation.*` and `refinement.translation.*`: optional progressive layers;
-- `motion.semantics` and `motion.contacts`: optional phase, event, and contact data;
-- `neural.tokens.*`: optional data for a separately versioned motion-runtime plugin.
+The implemented required roles are:
 
-Unknown required chunks are rejected. Unknown optional chunks may be skipped. A v2
-reader without a motion-generation plugin must still decode the base layer. Model
-weights are external dependencies and their bytes, memory, and latency must be reported
-separately from Codec results.
+- `segment.index`: the authoritative contiguous frame ranges and their chunk ids;
+- `base.rotation`: per-segment rotation tracks with an independent bit width per joint;
+- `base.translation`: per-segment scalar translation tracks with an independent bit
+  width and bounds per component.
 
-The first v2 encoder milestone will add adaptive per-track/per-segment bit allocation
-and deterministic temporal segmentation. Until that encoder and its native reader pass
-the existing quality gates, the on-disk major version remains `1`.
+Every rotation and translation track begins at relative frame zero. Frame indices are
+delta-coded varuints. Rotation values retain smallest-three coding; translation values
+retain bounded uniform quantization. Segments are decoded independently and written into
+the final immutable pose buffer. The current runtime opens chunks independently but
+keeps the fully reconstructed clip resident for fast sampling.
+
+For v2, the CLI's `rotation_bits` and `translation_bits` settings are upper bounds for
+the adaptive candidate set rather than one uniform width applied to every track.
+
+Unknown required chunk roles are rejected. Unknown optional roles may be skipped.
+Future refinement, semantics, contact, or generated-motion data must remain optional;
+the base layer always decodes without a model. Model weights and their storage, memory,
+hardware, and latency are reported separately from Codec results.

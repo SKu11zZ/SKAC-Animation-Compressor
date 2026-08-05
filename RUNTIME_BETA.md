@@ -12,7 +12,7 @@ and an Unreal runtime plugin. No compiled binaries are stored in this repository
 
 ### What works now
 
-- parse and validate a format-1.0 `.skac` container;
+- parse and validate SKAC v1 and independently checksummed SKAC v2 chunks;
 - inflate through built-in zlib or a host callback;
 - decode the complete clip into immutable track data;
 - query frame rate, duration, joint names, and parents;
@@ -29,7 +29,8 @@ threads. Diagnostics are thread-local.
 
 ### Beta limits
 
-- whole-clip loading, not chunked or streaming decode;
+- v1 inflates as one stream; v2 inflates per chunk, but both currently retain the fully
+  reconstructed clip in memory rather than a moving streaming window;
 - source coordinate convention and units are preserved;
 - Unity and Unreal adapters do not yet drive a character automatically;
 - the target skeleton is an explicit generated JSON companion, not embedded in `.skac`;
@@ -72,6 +73,7 @@ transform:
 
 ```text
 python -m tools.verify_native_runtime --probe build/native/skac_runtime_probe
+python -m tools.verify_native_v2_runtime --probe build/native/skac_runtime_v2_probe
 ```
 
 The comparison uses a generated public test motion and writes temporary metadata and
@@ -103,7 +105,7 @@ Runtime Beta 可以不启动 Python，直接在引擎侧播放完整 `.skac` 文
 
 ### 现在能做什么
 
-- 解析并校验格式 1.0 的 `.skac` 容器；
+- 解析并校验 SKAC v1，以及带独立校验的 SKAC v2 分块；
 - 使用内置 zlib，或者把解压交给宿主引擎；
 - 一次载入完整动画并生成只读轨道数据；
 - 查询帧数、时长、关节名和父子关系；
@@ -119,7 +121,8 @@ C ABI 输出四元数 `xyzw` 和位移 `xyz`。Decoder 打开后只读；每个 
 
 ### Beta 的边界
 
-- 当前是整段载入，不是分块或流式解码；
+- v1 仍按整段解压，v2 会逐块解压；两者目前都会把完整重建结果保留在内存中，还不是只
+  保留滑动窗口的流式播放；
 - 保留源动画的坐标系和单位；
 - Unity、Unreal 适配层暂不自动驱动角色；
 - 目标骨骼使用显式生成的 JSON 配套文件，暂不嵌入 `.skac`；
@@ -160,6 +163,7 @@ Unreal 适配层会把原生源码直接编进模块，并通过回调使用 Unr
 
 ```text
 python -m tools.verify_native_runtime --probe build/native/skac_runtime_probe
+python -m tools.verify_native_v2_runtime --probe build/native/skac_runtime_v2_probe
 ```
 
 比较使用程序生成的公开测试动画，临时元数据和 Payload 会写在发布目录之外。

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="382" viewBox="0 0 1280 382">
+<rect width="1280" height="382" fill="#f8fafc"/>
+<style>text{font-family:Inter,Segoe UI,Arial,sans-serif}.title{font-size:28px;font-weight:700}.small{font-size:13px;fill:#475569}.label{font-size:14px;font-weight:600;fill:#0f172a}.value{font-size:13px;fill:#334155}</style>
+<text x="48" y="52" class="title">SKAC v2 - Same character - direct Codec decode Gate</text>
+<rect x="1060" y="24" width="170" height="46" rx="23" fill="#15803d"/>
+<text x="1145" y="54" text-anchor="middle" font-size="20" font-weight="700" fill="white">PASS</text>
+<text x="48" y="82" class="small">No Profile cost on this route</text>
+<text x="48" y="108" class="small">Green bars pass the frozen threshold. Red bars block the build.</text>
+<text x="48" y="167" class="label">codec rotation</text>
+<rect x="390" y="150" width="420" height="22" rx="5" fill="#e2e8f0"/>
+<rect x="390" y="150" width="231.19" height="22" rx="5" fill="#22c55e"/>
+<text x="830" y="167" class="value">0.034404 degrees &lt;= 0.0625</text>
+<text x="48" y="215" class="label">codec global position</text>
+<rect x="390" y="198" width="420" height="22" rx="5" fill="#e2e8f0"/>
+<rect x="390" y="198" width="322.72" height="22" rx="5" fill="#22c55e"/>
+<text x="830" y="215" class="value">0.000768389 skeleton_height_fraction &lt;= 0.001</text>
+<text x="48" y="263" class="label">codec quaternion norm</text>
+<rect x="390" y="246" width="420" height="22" rx="5" fill="#e2e8f0"/>
+<rect x="390" y="246" width="0.00" height="22" rx="5" fill="#22c55e"/>
+<text x="830" y="263" class="value">0 absolute &lt;= 1e-10</text>
+<text x="48" y="311" class="label">decode realtime factor</text>
+<rect x="390" y="294" width="420" height="22" rx="5" fill="#e2e8f0"/>
+<rect x="390" y="294" width="13.36" height="22" rx="5" fill="#22c55e"/>
+<text x="830" y="311" class="value">314.329 x_realtime &gt;= 10</text>
+<text x="48" y="356" class="small">Quality scope: codec reconstruction and direct source-skeleton decode performance</text>
+</svg>

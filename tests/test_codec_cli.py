@@ -31,6 +31,37 @@ Frame Time: 0.0333333333
 
 
 class CodecCliTests(unittest.TestCase):
+    def test_v2_encode_inspect_and_decode_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.bvh"
+            encoded = root / "motion-v2.skac"
+            restored = root / "restored.bvh"
+            source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "encode",
+                            str(source),
+                            "-o",
+                            str(encoded),
+                            "--format-version",
+                            "2",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(output.getvalue())["format_version"], 2)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["inspect", str(encoded)]), 0)
+            self.assertEqual(json.loads(output.getvalue())["format_major"], 2)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["decode", str(encoded), "-o", str(restored)]), 0)
+            self.assertEqual(loads_bvh(restored.read_text(encoding="utf-8")).frame_count, 3)
+
     def test_encode_inspect_decode_commands(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

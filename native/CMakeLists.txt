@@ -50,6 +50,10 @@ if(SKAC_RUNTIME_BUILD_TESTS)
     target_compile_features(skac_runtime_probe PRIVATE ${SKAC_CXX_17_FEATURE})
     target_link_libraries(skac_runtime_probe PRIVATE SKAC::Runtime)
 
+    add_executable(skac_runtime_v2_probe tests/runtime_v2_probe.cpp)
+    target_compile_features(skac_runtime_v2_probe PRIVATE ${SKAC_CXX_17_FEATURE})
+    target_link_libraries(skac_runtime_v2_probe PRIVATE SKAC::Runtime)
+
     add_executable(skac_runtime_benchmark tests/runtime_benchmark.cpp)
     target_compile_features(skac_runtime_benchmark PRIVATE ${SKAC_CXX_17_FEATURE})
     target_link_libraries(skac_runtime_benchmark PRIVATE SKAC::Runtime)

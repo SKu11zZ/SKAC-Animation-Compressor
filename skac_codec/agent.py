@@ -16,6 +16,7 @@ from .adaptive import (
 )
 from .bvh import read_bvh, write_bvh
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
+from .format_v2 import encode_v2_bytes
 from .metrics import compression_metrics, roundtrip_metrics
 from .pack import inspect_pack_file, read_pack, write_pack
 from .quality import (
@@ -52,6 +53,9 @@ def capabilities() -> dict[str, Any]:
         "zlib_level",
         "minimum_decode_realtime_factor",
         "decode_iterations",
+        "format_version",
+        "min_segment_frames",
+        "max_segment_frames",
     ]
     different_gate_optional = codec_gate_optional + [
         "minimum_core_coverage",
@@ -75,6 +79,9 @@ def capabilities() -> dict[str, Any]:
                     "rotation_error_degrees",
                     "translation_error_fraction",
                     "zlib_level",
+                    "format_version",
+                    "min_segment_frames",
+                    "max_segment_frames",
                 ],
             },
             "inspect": {"required": ["input"], "optional": []},
@@ -245,6 +252,9 @@ def _encode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             "rotation_error_degrees",
             "translation_error_fraction",
             "zlib_level",
+            "format_version",
+            "min_segment_frames",
+            "max_segment_frames",
         },
         label="arguments",
     )
@@ -252,7 +262,39 @@ def _encode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     output = _output_path(workspace, arguments)
     clip = read_bvh(source)
     settings = _codec_settings(arguments)
-    encoded = encode_bytes(clip, settings)
+    format_version = int(
+        _number(arguments.get("format_version", 1), "arguments.format_version", int)
+    )
+    if format_version not in (1, 2):
+        raise AgentRequestError("arguments.format_version must be 1 or 2")
+    has_segment_options = any(
+        name in arguments for name in ("min_segment_frames", "max_segment_frames")
+    )
+    if format_version == 1 and has_segment_options:
+        raise AgentRequestError("segment frame options require format_version 2")
+    if format_version == 2:
+        min_segment_frames = int(
+            _number(
+                arguments.get("min_segment_frames", 8),
+                "arguments.min_segment_frames",
+                int,
+            )
+        )
+        max_segment_frames = int(
+            _number(
+                arguments.get("max_segment_frames", 32),
+                "arguments.max_segment_frames",
+                int,
+            )
+        )
+        encoded = encode_v2_bytes(
+            clip,
+            settings,
+            min_segment_frames=min_segment_frames,
+            max_segment_frames=max_segment_frames,
+        )
+    else:
+        encoded = encode_bytes(clip, settings)
     decoded = decode_bytes(encoded)
     _atomic_write(output, lambda path: path.write_bytes(encoded))
     return {
@@ -262,6 +304,7 @@ def _encode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             "bytes": len(encoded),
         },
         "quality": settings.quality_name,
+        "format_version": format_version,
         "rotation_bits": settings.rotation_bits,
         "translation_bits": settings.translation_bits,
         "rotation_error_degrees": settings.rotation_error_degrees,
@@ -531,6 +574,9 @@ def _quality_gate_impl(
         "zlib_level",
         "minimum_decode_realtime_factor",
         "decode_iterations",
+        "format_version",
+        "min_segment_frames",
+        "max_segment_frames",
     }
     different_optional = codec_optional | {
         "minimum_core_coverage",
@@ -575,6 +621,15 @@ def _quality_gate_impl(
 
     settings = _codec_settings(arguments)
     thresholds = QualityThresholds.for_settings(settings)
+    format_version = int(
+        _number(arguments.get("format_version", 1), "arguments.format_version", int)
+    )
+    if format_version not in (1, 2):
+        raise AgentRequestError("arguments.format_version must be 1 or 2")
+    if format_version == 1 and any(
+        name in arguments for name in ("min_segment_frames", "max_segment_frames")
+    ):
+        raise AgentRequestError("segment frame options require format_version 2")
 
     def floating(name: str, fallback: float) -> float:
         return (
@@ -618,6 +673,9 @@ def _quality_gate_impl(
         pipeline_iterations=integer("pipeline_iterations", 3),
         frame_samples=integer("frame_samples", 300),
         evaluation_case=evaluation_case,
+        format_version=format_version,
+        min_segment_frames=integer("min_segment_frames", 8),
+        max_segment_frames=integer("max_segment_frames", 32),
     )
     write_quality_report_json(outputs["report"], report)
     write_quality_report_svg(outputs["visual"], report)

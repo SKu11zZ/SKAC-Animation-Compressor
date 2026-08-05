@@ -40,7 +40,8 @@ skac-agent run --workspace ./job --request ./encode-request.json --pretty
   "arguments": {
     "input": "motions/walk.bvh",
     "output": "artifacts/walk.skac",
-    "quality": "high"
+    "quality": "high",
+    "format_version": 2
   }
 }
 ```
@@ -73,7 +74,8 @@ line; one bad line does not stop later jobs. JSONL responses are also one line e
 
 Protocol v1 operations:
 
-- `encode`: BVH to `.skac`;
+- `encode`: BVH to `.skac`; `format_version` selects v1 or v2, and v2 optionally accepts
+  `min_segment_frames` and `max_segment_frames`;
 - `inspect`: read `.skac` metadata without creating an asset;
 - `pack_create`: build a deterministic `.skacpack` from a JSON object of entry IDs and
   workspace-relative `.skac` paths;
@@ -133,7 +135,8 @@ skac-agent run --workspace ./job --request ./encode-request.json --pretty
   `quality_gate_different`；两套门槛都会同时生成 JSON 和 SVG；
 - `arguments`：该操作需要的路径和选项。
 
-`quality_gate_same` 只接受源动画，不允许传目标骨架或 Profile 字段；
+`encode` 可通过 `format_version` 选择 v1 或 v2；v2 还可设置 `min_segment_frames` 和
+`max_segment_frames`。`quality_gate_same` 只接受源动画，不允许传目标骨架或 Profile 字段；
 `quality_gate_different` 必须传目标骨架，并会检查 Profile 覆盖和运行时。旧的
 `quality_gate` 只留作兼容，会按两份骨架签名自动分类。新的 Agent 接入直接用两个明确操作。
 

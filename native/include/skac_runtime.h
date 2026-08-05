@@ -86,7 +86,7 @@ SKAC_RUNTIME_API skac_result skac_decoder_open_raw(
     skac_decoder** out_decoder
 );
 
-/* Parse a complete .skac container and delegate zlib inflation to the host. */
+/* Parse a complete SKAC v1 or v2 container and delegate zlib inflation to the host. */
 SKAC_RUNTIME_API skac_result skac_decoder_open_container(
     const uint8_t* container,
     size_t container_size,
@@ -96,7 +96,7 @@ SKAC_RUNTIME_API skac_result skac_decoder_open_container(
 );
 
 /*
- * Parse a complete .skac container with the optional built-in zlib path.
+ * Parse a complete SKAC v1 or v2 container with the optional built-in zlib path.
  * Returns SKAC_UNSUPPORTED when the library was built without zlib.
  */
 SKAC_RUNTIME_API skac_result skac_decoder_open_memory(

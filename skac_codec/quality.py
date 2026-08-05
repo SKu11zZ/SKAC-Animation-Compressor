@@ -122,11 +122,16 @@ def run_quality_gate(
     pipeline_iterations: int = 3,
     frame_samples: int = 300,
     evaluation_case: str = "auto",
+    format_version: int = 1,
+    min_segment_frames: int = 8,
+    max_segment_frames: int = 32,
 ) -> dict[str, Any]:
     settings = settings or CodecSettings.preset("high")
     thresholds = thresholds or QualityThresholds.for_settings(settings)
     if decode_iterations < 1 or pipeline_iterations < 1 or frame_samples < 1:
         raise ValueError("quality-gate iteration counts must be positive")
+    if format_version not in (1, 2):
+        raise ValueError("format_version must be 1 or 2")
 
     requested_case = evaluation_case.replace("-", "_").casefold()
     if requested_case not in {"auto", "same_character", "different_character"}:
@@ -140,7 +145,17 @@ def run_quality_gate(
     if resolved_case == "same_character" and not same_skeleton:
         raise ValueError("same_character requires identical source and target skeletons")
 
-    encoded = encode_bytes(source, settings)
+    if format_version == 2:
+        from .format_v2 import encode_v2_bytes
+
+        encoded = encode_v2_bytes(
+            source,
+            settings,
+            min_segment_frames=min_segment_frames,
+            max_segment_frames=max_segment_frames,
+        )
+    else:
+        encoded = encode_bytes(source, settings)
     decoded = decode_bytes(encoded)
     codec_quality = roundtrip_metrics(source, decoded)
     source_height = _skeleton_height(source.skeleton, 1)
@@ -402,6 +417,7 @@ def run_quality_gate(
             }
         ),
         "codec": {
+            "format_version": format_version,
             "quality": settings.quality_name,
             **compression_metrics(source, len(encoded)),
             **codec_quality,
@@ -435,11 +451,12 @@ def write_quality_report_svg(path: Path, report: dict[str, Any]) -> None:
     status_color = "#15803d" if passed else "#b91c1c"
     background = "#f8fafc"
     same_character = report["evaluation_case"] == "same_character"
-    case_label = (
+    route_label = (
         "Same character - direct Codec decode"
         if same_character
         else "Different character - compiled Profile playback"
     )
+    case_label = f'v{report["codec"]["format_version"]} - {route_label}'
     profile_label = (
         "No Profile cost on this route"
         if same_character

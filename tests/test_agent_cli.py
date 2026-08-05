@@ -88,6 +88,26 @@ class AgentCliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertEqual(inspected["result"]["format_major"], 1)
 
+            encoded_v2, status = execute_request(
+                request(
+                    "e2",
+                    "encode",
+                    input="motions/source.bvh",
+                    output="artifacts/motion-v2.skac",
+                    quality="high",
+                    format_version=2,
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(encoded_v2["result"]["format_version"], 2)
+            inspected_v2, status = execute_request(
+                request("i2", "inspect", input="artifacts/motion-v2.skac"),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(inspected_v2["result"]["format_major"], 2)
+
             profiled, status = execute_request(
                 request(
                     "p1",

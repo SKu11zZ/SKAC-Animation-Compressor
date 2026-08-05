@@ -14,11 +14,11 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#141414}
 <text x="72" y="160" class="value">4</text>
 <text x="72" y="190" class="label">Segments / 分段</text>
 <rect x="346" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
-<text x="366" y="160" class="value">12.31</text>
-<text x="366" y="190" class="label">Mean bits / 平均位宽</text>
+<text x="366" y="160" class="value">12.31 / 8.00</text>
+<text x="366" y="190" class="label">Mean bits R/T / 旋转·位移平均位宽</text>
 <rect x="640" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
-<text x="660" y="160" class="value">336</text>
-<text x="660" y="190" class="label">Rotation keys / 旋转关键帧</text>
+<text x="660" y="160" class="value">336 / 16</text>
+<text x="660" y="190" class="label">Keys R/T / 旋转·位移关键帧</text>
 <rect x="934" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
 <text x="954" y="160" class="value">0.03440°</text>
 <text x="954" y="190" class="label">Max rotation error / 最大旋转误差</text>
@@ -54,6 +54,6 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#141414}
 <rect x="600" y="437" width="330.00" height="16" rx="8" fill="#ff5c35"/>
 <text x="940.00" y="450" class="small">12.0 bit</text>
 <line x1="52" y1="528" x2="1228" y2="528" stroke="#d4d1cb"/>
-<text x="52" y="546" class="small">Planned payload is pre-entropy rotation data only; it is not reported as final compression ratio.</text>
-<text x="1228" y="546" text-anchor="end" class="small">Plan 891f41481c57</text>
+<text x="52" y="546" class="small">Planned payload covers pre-entropy rotation and translation data; it is not a final compression ratio.</text>
+<text x="1228" y="546" text-anchor="end" class="small">Plan 3460e8fd6ad7</text>
 </svg>
