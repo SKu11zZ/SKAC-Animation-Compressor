@@ -10,6 +10,7 @@ from .bvh import read_bvh, write_bvh
 from .fbx import extract_fbx_to_bvh, inject_bvh_into_fbx, validate_fbx
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
+from .pack import inspect_pack_file, read_pack, write_pack
 from .quality import (
     QualityThresholds,
     run_quality_gate,
@@ -107,6 +108,49 @@ def _decode(args: argparse.Namespace) -> int:
 
 def _inspect(args: argparse.Namespace) -> int:
     _write_json(inspect_file(args.input))
+    return 0
+
+
+def _pack_entries(values: list[str]) -> dict[str, bytes]:
+    entries: dict[str, bytes] = {}
+    for value in values:
+        entry_id, separator, supplied_path = value.partition("=")
+        if not separator or not entry_id or not supplied_path:
+            raise ValueError("--clip must use ID=PATH")
+        if entry_id in entries:
+            raise ValueError(f"duplicate pack entry id: {entry_id}")
+        path = Path(supplied_path)
+        if not path.is_file():
+            raise ValueError(f"pack input does not exist: {path}")
+        entries[entry_id] = path.read_bytes()
+    return entries
+
+
+def _pack_create(args: argparse.Namespace) -> int:
+    entries = _pack_entries(args.clip)
+    write_pack(args.output, entries)
+    _write_json({"command": "pack-create", **inspect_pack_file(args.output)})
+    return 0
+
+
+def _pack_inspect(args: argparse.Namespace) -> int:
+    _write_json({"command": "pack-inspect", **inspect_pack_file(args.input)})
+    return 0
+
+
+def _pack_extract(args: argparse.Namespace) -> int:
+    archive = read_pack(args.input)
+    encoded = archive.entry_bytes(args.entry)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_bytes(encoded)
+    _write_json(
+        {
+            "command": "pack-extract",
+            "entry": args.entry,
+            "output": str(args.output),
+            "bytes": len(encoded),
+        }
+    )
     return 0
 
 
@@ -302,6 +346,33 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect", help="inspect container metadata")
     inspect_parser.add_argument("input", type=Path)
     inspect_parser.set_defaults(handler=_inspect)
+
+    pack_create_parser = subparsers.add_parser(
+        "pack-create", help="build a deterministic SKAC Pack from encoded animations"
+    )
+    pack_create_parser.add_argument(
+        "--clip",
+        action="append",
+        required=True,
+        metavar="ID=PATH",
+        help="add one named .skac animation; repeat for multiple entries",
+    )
+    pack_create_parser.add_argument("--output", "-o", type=Path, required=True)
+    pack_create_parser.set_defaults(handler=_pack_create)
+
+    pack_inspect_parser = subparsers.add_parser(
+        "pack-inspect", help="inspect and fully validate a SKAC Pack"
+    )
+    pack_inspect_parser.add_argument("input", type=Path)
+    pack_inspect_parser.set_defaults(handler=_pack_inspect)
+
+    pack_extract_parser = subparsers.add_parser(
+        "pack-extract", help="extract one named animation from a SKAC Pack"
+    )
+    pack_extract_parser.add_argument("input", type=Path)
+    pack_extract_parser.add_argument("entry")
+    pack_extract_parser.add_argument("--output", "-o", type=Path, required=True)
+    pack_extract_parser.set_defaults(handler=_pack_extract)
 
     profile_parser = subparsers.add_parser(
         "profile", help="freeze a source-to-target skeleton profile"

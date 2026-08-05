@@ -169,6 +169,56 @@ class CodecCliTests(unittest.TestCase):
             self.assertEqual(result["command"], "quality-gate-different")
             self.assertEqual(result["evaluation_case"], "different_character")
 
+    def test_pack_create_inspect_and_extract_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.bvh"
+            encoded = root / "motion.skac"
+            archive = root / "motions.skacpack"
+            extracted = root / "restored.skac"
+            source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    main(["encode", str(source), "-o", str(encoded)]), 0
+                )
+                self.assertEqual(
+                    main(
+                        [
+                            "pack-create",
+                            "--clip",
+                            f"idle={encoded}",
+                            "--clip",
+                            f"idle-copy={encoded}",
+                            "-o",
+                            str(archive),
+                        ]
+                    ),
+                    0,
+                )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["pack-inspect", str(archive)]), 0)
+            report = json.loads(output.getvalue())
+            self.assertEqual(report["entry_count"], 2)
+            self.assertEqual(report["unique_blob_count"], 1)
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    main(
+                        [
+                            "pack-extract",
+                            str(archive),
+                            "idle",
+                            "-o",
+                            str(extracted),
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(extracted.read_bytes(), encoded.read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()

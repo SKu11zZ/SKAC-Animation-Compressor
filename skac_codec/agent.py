@@ -12,6 +12,7 @@ from typing import Any, Callable, Mapping, Sequence
 from .bvh import read_bvh, write_bvh
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
+from .pack import inspect_pack_file, read_pack, write_pack
 from .quality import (
     QualityThresholds,
     run_quality_gate,
@@ -72,6 +73,15 @@ def capabilities() -> dict[str, Any]:
                 ],
             },
             "inspect": {"required": ["input"], "optional": []},
+            "pack_create": {
+                "required": ["entries", "output"],
+                "optional": ["overwrite"],
+            },
+            "pack_inspect": {"required": ["input"], "optional": []},
+            "pack_extract": {
+                "required": ["input", "entry", "output"],
+                "optional": ["overwrite"],
+            },
             "decode": {
                 "required": ["input", "output"],
                 "optional": ["overwrite", "target", "profile"],
@@ -254,6 +264,69 @@ def _inspect(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     _strict_fields(arguments, required={"input"}, optional=set(), label="arguments")
     source = _relative_path(workspace, arguments["input"], "arguments.input", input_file=True)
     return inspect_file(source)
+
+
+def _pack_create(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _strict_fields(
+        arguments,
+        required={"entries", "output"},
+        optional={"overwrite"},
+        label="arguments",
+    )
+    supplied_entries = _object(arguments["entries"], "arguments.entries")
+    if not supplied_entries:
+        raise AgentRequestError("arguments.entries cannot be empty")
+    entries: dict[str, bytes] = {}
+    for entry_id, supplied_path in supplied_entries.items():
+        source = _relative_path(
+            workspace,
+            supplied_path,
+            f"arguments.entries.{entry_id}",
+            input_file=True,
+        )
+        entries[entry_id] = source.read_bytes()
+    output = _output_path(workspace, arguments)
+    _atomic_write(output, lambda path: write_pack(path, entries))
+    return {
+        "artifact": {
+            "path": _display_path(workspace, output),
+            "media_type": "application/vnd.skac.pack",
+            "bytes": output.stat().st_size,
+        },
+        **inspect_pack_file(output),
+    }
+
+
+def _pack_inspect(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _strict_fields(arguments, required={"input"}, optional=set(), label="arguments")
+    source = _relative_path(
+        workspace, arguments["input"], "arguments.input", input_file=True
+    )
+    return inspect_pack_file(source)
+
+
+def _pack_extract(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _strict_fields(
+        arguments,
+        required={"input", "entry", "output"},
+        optional={"overwrite"},
+        label="arguments",
+    )
+    source = _relative_path(
+        workspace, arguments["input"], "arguments.input", input_file=True
+    )
+    entry_id = _string(arguments["entry"], "arguments.entry")
+    output = _output_path(workspace, arguments)
+    encoded = read_pack(source).entry_bytes(entry_id)
+    _atomic_write(output, lambda path: path.write_bytes(encoded))
+    return {
+        "artifact": {
+            "path": _display_path(workspace, output),
+            "media_type": "application/vnd.skac.animation",
+            "bytes": len(encoded),
+        },
+        "entry": entry_id,
+    }
 
 
 def _decode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -494,6 +567,9 @@ def _quality_gate(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
 _OPERATIONS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "encode": _encode,
     "inspect": _inspect,
+    "pack_create": _pack_create,
+    "pack_inspect": _pack_inspect,
+    "pack_extract": _pack_extract,
     "decode": _decode,
     "profile": _profile,
     "runtime_skeleton": _runtime_skeleton,

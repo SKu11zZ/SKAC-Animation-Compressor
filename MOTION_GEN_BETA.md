@@ -1,0 +1,62 @@
+# SKAC Motion Runtime Beta
+
+[English](#english) | [中文](#chinese)
+
+<a id="english"></a>
+
+## English
+
+The Motion Runtime is an optional layer above the deterministic SKAC Codec. Authored
+animation remains decodable without a model. The optional runtime may use phase,
+contacts, root trajectory, events, and semantic tags to build smoother transitions or
+generate missing in-between frames.
+
+The public architecture has three independent parts:
+
+1. **SKAC v2**: deterministic clip data, adaptive bit allocation, temporal segments,
+   random access, and progressive refinement layers.
+2. **SKAC Pack v1**: library index and exact content-addressed blob sharing today,
+   followed by compatible shared track and segment dictionaries.
+3. **SKAC Motion Runtime Beta**: deterministic semantic interpolation first, with an
+   optional neural in-betweening plugin later.
+
+The generation layer must not overwrite source keys, change root-motion meaning, or
+move protected contact/event anchors. A device without the plugin uses deterministic
+quaternion, translation, phase, and root-trajectory interpolation. Model weights stay
+outside `.skac`; their storage, memory, hardware, and latency are reported separately.
+
+### Public naming
+
+Formats and APIs use versioned SKAC names only: `SKAC v1`, `SKAC v2`, `SKAC Pack v1`,
+and `SKAC Motion Runtime Beta`. Experiment labels are not public format names.
+
+### Development order
+
+1. Freeze chunk and Pack boundaries without changing SKAC v1 playback.
+2. Add perceptual per-track/per-segment bit allocation.
+3. Add adaptive temporal segmentation and random access.
+4. Add base and refinement quality layers.
+5. Add shared Pack segment dictionaries.
+6. Add phase, contact, event, and root-trajectory semantics.
+7. Ship deterministic semantic in-betweening, then test an optional neural plugin.
+
+Every stage must keep the existing same-character and different-character quality
+reports separate. Generated-transition quality adds contact preservation, foot sliding,
+root continuity, acceleration discontinuity, runtime latency, and fallback-equivalence
+checks.
+
+<a id="chinese"></a>
+
+## 中文
+
+Motion Runtime 是确定性 SKAC Codec 上方的可选层。原始动画不依赖模型也必须能够正常
+解码；可选运行时可以利用动作阶段、脚部接触、Root 轨迹、事件锚点和语义标签生成更平滑
+的过渡或补间帧。
+
+整个方向分成三部分：SKAC v2 负责确定性分段压缩和渐进质量，SKAC Pack v1 负责动画库
+索引与共享，SKAC Motion Runtime Beta 负责语义插值以及后续可选的神经补间。生成层不能
+覆盖原始关键动作，不能改变 Root Motion 含义，也不能移动受保护的接触和事件帧。没有模型
+插件的设备始终回退到确定性插值。
+
+公开格式和接口只使用版本化名称：`SKAC v1`、`SKAC v2`、`SKAC Pack v1` 和
+`SKAC Motion Runtime Beta`。

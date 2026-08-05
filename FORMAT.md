@@ -86,3 +86,27 @@ distribution should sign the complete file separately.
 Minor versions may add metadata fields without changing existing decoding semantics.
 Changing payload interpretation, transform conventions, or required fields requires a
 new major version.
+
+## SKAC v2 Beta boundary
+
+The current encoder still emits SKAC v1. SKAC v2 is reserved for the deterministic,
+chunked evolution of the same Codec. It does not turn generation into a required decode
+step and it does not change the meaning of an authored clip.
+
+The v2 payload is divided into independently checksummed chunks described by a
+canonical metadata directory. The frozen chunk roles are:
+
+- `base.rotation` and `base.translation`: sufficient for deterministic playback;
+- `segment.index`: random-access frame ranges and their required base chunks;
+- `refinement.rotation.*` and `refinement.translation.*`: optional progressive layers;
+- `motion.semantics` and `motion.contacts`: optional phase, event, and contact data;
+- `neural.tokens.*`: optional data for a separately versioned motion-runtime plugin.
+
+Unknown required chunks are rejected. Unknown optional chunks may be skipped. A v2
+reader without a motion-generation plugin must still decode the base layer. Model
+weights are external dependencies and their bytes, memory, and latency must be reported
+separately from Codec results.
+
+The first v2 encoder milestone will add adaptive per-track/per-segment bit allocation
+and deterministic temporal segmentation. Until that encoder and its native reader pass
+the existing quality gates, the on-disk major version remains `1`.

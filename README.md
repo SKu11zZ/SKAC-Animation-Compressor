@@ -4,7 +4,8 @@
 
 <p align="center">
   <a href="#english">English</a> · <a href="#chinese">中文</a> ·
-  <a href="FORMAT.md">Format 1.0</a> · <a href="RUNTIME_BETA.md">Runtime Beta</a> ·
+  <a href="FORMAT.md">SKAC Format</a> · <a href="SKACPACK.md">SKAC Pack</a> ·
+  <a href="MOTION_GEN_BETA.md">Motion Gen Beta</a> · <a href="RUNTIME_BETA.md">Runtime Beta</a> ·
   <a href="QUALITY_GATES.md">Quality Gates</a>
 </p>
 
@@ -21,6 +22,12 @@ source character or, through a frozen Profile, on another public skeleton.
 This is the public academic side of that system. The repo makes compression and
 cross-skeleton playback measurable, and keeps their results separate so Codec
 reconstruction error cannot be presented as retargeting quality.
+
+The `Zz1S/beta-motion-gen` branch is building the next layer without replacing the
+deterministic Codec: SKAC v2 adds motion-adaptive and progressive storage, SKAC Pack v1
+adds a validated library container, and the optional SKAC Motion Runtime Beta will add
+semantic in-betweening with a deterministic fallback. Public names use SKAC version
+numbers only; experiment labels are not part of the format or API.
 
 ### Codec performance snapshot / Codec 性能展示
 
@@ -58,7 +65,7 @@ public baseline.
 
 ### What is here
 
-- `skac_codec`: BVH I/O, the versioned `.skac` container, encoder, decoder, and CLI;
+- `skac_codec`: BVH I/O, the versioned `.skac` Codec, `.skacpack`, and CLI;
 - `skac-agent`: a versioned JSON/JSONL interface for other Agents and automation;
 - `native` and `integrations`: a C++ decoder plus Unity/Unreal Runtime Beta adapters;
 - `QUALITY_GATES.md`: frozen reconstruction and playback-performance limits;
@@ -88,6 +95,9 @@ Python 3.10+ and NumPy are enough for the benchmark itself.
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
+python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
+python -m skac_codec pack-inspect library.skacpack
+python -m skac_codec pack-extract library.skacpack walk -o walk-restored.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json
@@ -261,6 +271,9 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
+python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
+python -m skac_codec pack-inspect library.skacpack
+python -m skac_codec pack-extract library.skacpack walk -o walk-restored.skac
 python -m skac_codec decode motion.skac -o restored.bvh
 python -m skac_codec profile motion.skac target.bvh -o target.skac-profile.json
 python -m skac_codec runtime-skeleton target.bvh -o target.runtime-skeleton.json

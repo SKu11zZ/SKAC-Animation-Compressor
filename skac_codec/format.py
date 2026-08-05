@@ -662,8 +662,7 @@ def read_skac(path: Path) -> MotionClip:
     return decode_bytes(path.read_bytes())
 
 
-def inspect_file(path: Path) -> dict[str, Any]:
-    data = path.read_bytes()
+def inspect_bytes(data: bytes) -> dict[str, Any]:
     metadata, _ = _read_container(data)
     codec = metadata.get("codec", {})
     return {
@@ -689,3 +688,7 @@ def inspect_file(path: Path) -> dict[str, Any]:
             "translation_payload_bytes": codec.get("translation_payload_bytes"),
         },
     }
+
+
+def inspect_file(path: Path) -> dict[str, Any]:
+    return inspect_bytes(path.read_bytes())

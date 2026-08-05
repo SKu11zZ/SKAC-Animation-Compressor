@@ -49,6 +49,9 @@ class AgentCliTests(unittest.TestCase):
         self.assertIn("quality_gate_same", report["operations"])
         self.assertIn("quality_gate_different", report["operations"])
         self.assertIn("runtime_skeleton", report["operations"])
+        self.assertIn("pack_create", report["operations"])
+        self.assertIn("pack_inspect", report["operations"])
+        self.assertIn("pack_extract", report["operations"])
         self.assertNotIn(
             "target", report["operations"]["quality_gate_same"]["optional"]
         )
@@ -124,6 +127,50 @@ class AgentCliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertTrue(decoded["result"]["retargeted"])
             self.assertTrue((workspace / "results" / "restored.bvh").is_file())
+
+            packed, status = execute_request(
+                request(
+                    "pk1",
+                    "pack_create",
+                    entries={
+                        "motion": "artifacts/motion.skac",
+                        "motion-copy": "artifacts/motion.skac",
+                    },
+                    output="artifacts/motions.skacpack",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(packed["result"]["entry_count"], 2)
+            self.assertEqual(packed["result"]["unique_blob_count"], 1)
+
+            inspected_pack, status = execute_request(
+                request(
+                    "pi1",
+                    "pack_inspect",
+                    input="artifacts/motions.skacpack",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(inspected_pack["result"]["entry_count"], 2)
+
+            extracted, status = execute_request(
+                request(
+                    "px1",
+                    "pack_extract",
+                    input="artifacts/motions.skacpack",
+                    entry="motion",
+                    output="artifacts/extracted.skac",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertEqual(extracted["result"]["entry"], "motion")
+            self.assertEqual(
+                (workspace / "artifacts" / "extracted.skac").read_bytes(),
+                (workspace / "artifacts" / "motion.skac").read_bytes(),
+            )
 
     def test_rejects_path_escape_unknown_fields_and_implicit_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

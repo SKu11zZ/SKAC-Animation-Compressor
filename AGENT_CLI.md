@@ -75,6 +75,10 @@ Protocol v1 operations:
 
 - `encode`: BVH to `.skac`;
 - `inspect`: read `.skac` metadata without creating an asset;
+- `pack_create`: build a deterministic `.skacpack` from a JSON object of entry IDs and
+  workspace-relative `.skac` paths;
+- `pack_inspect`: fully validate and inspect a `.skacpack`;
+- `pack_extract`: restore one named `.skac` entry from a `.skacpack`;
 - `decode`: `.skac` to the source BVH skeleton, or to a target skeleton when both
   `target` and `profile` are supplied;
 - `profile`: freeze one source-to-target skeleton profile;
