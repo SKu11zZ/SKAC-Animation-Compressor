@@ -52,6 +52,7 @@ class AgentCliTests(unittest.TestCase):
         self.assertIn("pack_create", report["operations"])
         self.assertIn("pack_inspect", report["operations"])
         self.assertIn("pack_extract", report["operations"])
+        self.assertIn("adaptive_plan", report["operations"])
         self.assertNotIn(
             "target", report["operations"]["quality_gate_same"]["optional"]
         )
@@ -171,6 +172,21 @@ class AgentCliTests(unittest.TestCase):
                 (workspace / "artifacts" / "extracted.skac").read_bytes(),
                 (workspace / "artifacts" / "motion.skac").read_bytes(),
             )
+
+            adaptive, status = execute_request(
+                request(
+                    "ap1",
+                    "adaptive_plan",
+                    source="motions/source.bvh",
+                    report="reports/adaptive.json",
+                    visual="reports/adaptive.svg",
+                ),
+                workspace,
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(adaptive["result"]["passed"])
+            self.assertTrue((workspace / "reports" / "adaptive.json").is_file())
+            self.assertTrue((workspace / "reports" / "adaptive.svg").is_file())
 
     def test_rejects_path_escape_unknown_fields_and_implicit_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

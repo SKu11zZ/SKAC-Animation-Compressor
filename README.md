@@ -95,6 +95,7 @@ Python 3.10+ and NumPy are enough for the benchmark itself.
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
+python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg
 python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
 python -m skac_codec pack-inspect library.skacpack
 python -m skac_codec pack-extract library.skacpack walk -o walk-restored.skac
@@ -271,6 +272,7 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
 python -m skac_codec inspect motion.skac
+python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg
 python -m skac_codec pack-create --clip idle=idle.skac --clip walk=walk.skac -o library.skacpack
 python -m skac_codec pack-inspect library.skacpack
 python -m skac_codec pack-extract library.skacpack walk -o walk-restored.skac

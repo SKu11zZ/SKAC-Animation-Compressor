@@ -219,6 +219,33 @@ class CodecCliTests(unittest.TestCase):
                 )
             self.assertEqual(extracted.read_bytes(), encoded.read_bytes())
 
+    def test_adaptive_plan_writes_json_and_svg(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source.bvh"
+            report = root / "adaptive.json"
+            visual = root / "adaptive.svg"
+            source.write_text(SINGLE_JOINT_BVH, encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(
+                    main(
+                        [
+                            "adaptive-plan",
+                            str(source),
+                            "-o",
+                            str(report),
+                            "--visual",
+                            str(visual),
+                        ]
+                    ),
+                    0,
+                )
+            result = json.loads(output.getvalue())
+            self.assertTrue(result["passed"])
+            self.assertTrue(report.is_file())
+            self.assertIn("感知规划", visual.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

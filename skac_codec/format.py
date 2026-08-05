@@ -333,6 +333,18 @@ def _decode_rotations(data: bytes, count: int, bits: int) -> np.ndarray:
     return result / lengths
 
 
+def quantize_rotation_samples(quaternions: np.ndarray, bits: int) -> np.ndarray:
+    """Round-trip quaternion samples through SKAC smallest-three quantization."""
+    values = np.asarray(quaternions, dtype=np.float64)
+    if values.ndim < 2 or values.shape[-1] != 4 or values.size == 0:
+        raise ValueError("quaternions must have a non-empty final dimension of four")
+    if not 8 <= bits <= 20:
+        raise ValueError("rotation bits must be between 8 and 20")
+    flat = values.reshape(-1, 4)
+    decoded = _decode_rotations(_encode_rotations(flat, bits), len(flat), bits)
+    return decoded.reshape(values.shape)
+
+
 def _encode_rotation_tracks(
     clip: MotionClip,
     joints: tuple[int, ...],

@@ -9,6 +9,11 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from .adaptive import (
+    build_adaptive_plan,
+    write_adaptive_plan_json,
+    write_adaptive_plan_svg,
+)
 from .bvh import read_bvh, write_bvh
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
 from .metrics import compression_metrics, roundtrip_metrics
@@ -81,6 +86,15 @@ def capabilities() -> dict[str, Any]:
             "pack_extract": {
                 "required": ["input", "entry", "output"],
                 "optional": ["overwrite"],
+            },
+            "adaptive_plan": {
+                "required": ["source", "report", "visual"],
+                "optional": [
+                    "overwrite",
+                    "quality",
+                    "min_segment_frames",
+                    "max_segment_frames",
+                ],
             },
             "decode": {
                 "required": ["input", "output"],
@@ -329,6 +343,73 @@ def _pack_extract(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _adaptive_plan(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _strict_fields(
+        arguments,
+        required={"source", "report", "visual"},
+        optional={
+            "overwrite",
+            "quality",
+            "min_segment_frames",
+            "max_segment_frames",
+        },
+        label="arguments",
+    )
+    source = _relative_path(
+        workspace, arguments["source"], "arguments.source", input_file=True
+    )
+    overwrite = _boolean(arguments.get("overwrite", False), "arguments.overwrite")
+    outputs: dict[str, Path] = {}
+    for name in ("report", "visual"):
+        output = _relative_path(
+            workspace, arguments[name], f"arguments.{name}", input_file=False
+        )
+        if output.exists() and not overwrite:
+            raise AgentRequestError(
+                f"arguments.{name} already exists; set overwrite to true"
+            )
+        if output.exists() and not output.is_file():
+            raise AgentRequestError(f"arguments.{name} is not a regular file")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        outputs[name] = output
+    if outputs["report"] == outputs["visual"]:
+        raise AgentRequestError(
+            "arguments.report and arguments.visual must be different files"
+        )
+
+    def integer(name: str, fallback: int) -> int:
+        return (
+            int(_number(arguments[name], f"arguments.{name}", int))
+            if name in arguments
+            else fallback
+        )
+
+    report, _ = build_adaptive_plan(
+        read_bvh(source),
+        settings=CodecSettings.preset(
+            _string(arguments.get("quality", "high"), "arguments.quality")
+        ),
+        min_segment_frames=integer("min_segment_frames", 8),
+        max_segment_frames=integer("max_segment_frames", 32),
+    )
+    _atomic_write(
+        outputs["report"], lambda path: write_adaptive_plan_json(path, report)
+    )
+    _atomic_write(
+        outputs["visual"], lambda path: write_adaptive_plan_svg(path, report)
+    )
+    return {
+        "passed": report["passed"],
+        "plan_sha256": report["plan_sha256"],
+        "report": _display_path(workspace, outputs["report"]),
+        "visual": _display_path(workspace, outputs["visual"]),
+        "summary": report["summary"],
+        "failed_checks": [
+            item["id"] for item in report["checks"] if not item["passed"]
+        ],
+    }
+
+
 def _decode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     _strict_fields(
         arguments,
@@ -570,6 +651,7 @@ _OPERATIONS: dict[str, Callable[[Path, dict[str, Any]], dict[str, Any]]] = {
     "pack_create": _pack_create,
     "pack_inspect": _pack_inspect,
     "pack_extract": _pack_extract,
+    "adaptive_plan": _adaptive_plan,
     "decode": _decode,
     "profile": _profile,
     "runtime_skeleton": _runtime_skeleton,

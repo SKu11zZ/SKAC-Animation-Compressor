@@ -6,6 +6,11 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
 
+from .adaptive import (
+    build_adaptive_plan,
+    write_adaptive_plan_json,
+    write_adaptive_plan_svg,
+)
 from .bvh import read_bvh, write_bvh
 from .fbx import extract_fbx_to_bvh, inject_bvh_into_fbx, validate_fbx
 from .format import CodecSettings, decode_bytes, encode_bytes, inspect_file, read_skac
@@ -152,6 +157,33 @@ def _pack_extract(args: argparse.Namespace) -> int:
         }
     )
     return 0
+
+
+def _adaptive_plan(args: argparse.Namespace) -> int:
+    clip = read_bvh(args.source)
+    settings = CodecSettings.preset(args.quality)
+    report, _ = build_adaptive_plan(
+        clip,
+        settings=settings,
+        min_segment_frames=args.min_segment_frames,
+        max_segment_frames=args.max_segment_frames,
+    )
+    write_adaptive_plan_json(args.output, report)
+    write_adaptive_plan_svg(args.visual, report)
+    _write_json(
+        {
+            "command": "adaptive-plan",
+            "passed": report["passed"],
+            "plan_sha256": report["plan_sha256"],
+            "report": str(args.output),
+            "visual": str(args.visual),
+            "summary": report["summary"],
+            "failed_checks": [
+                item["id"] for item in report["checks"] if not item["passed"]
+            ],
+        }
+    )
+    return 0 if report["passed"] else 4
 
 
 def _profile(args: argparse.Namespace) -> int:
@@ -373,6 +405,20 @@ def build_parser() -> argparse.ArgumentParser:
     pack_extract_parser.add_argument("entry")
     pack_extract_parser.add_argument("--output", "-o", type=Path, required=True)
     pack_extract_parser.set_defaults(handler=_pack_extract)
+
+    adaptive_parser = subparsers.add_parser(
+        "adaptive-plan",
+        help="plan perceptual segments and rotation bit widths for SKAC v2",
+    )
+    adaptive_parser.add_argument("source", type=Path, help="source BVH animation")
+    adaptive_parser.add_argument("--output", "-o", type=Path, required=True)
+    adaptive_parser.add_argument("--visual", type=Path, required=True)
+    adaptive_parser.add_argument(
+        "--quality", choices=("low", "medium", "high"), default="high"
+    )
+    adaptive_parser.add_argument("--min-segment-frames", type=int, default=8)
+    adaptive_parser.add_argument("--max-segment-frames", type=int, default=32)
+    adaptive_parser.set_defaults(handler=_adaptive_plan)
 
     profile_parser = subparsers.add_parser(
         "profile", help="freeze a source-to-target skeleton profile"

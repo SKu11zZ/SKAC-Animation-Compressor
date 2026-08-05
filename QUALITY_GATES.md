@@ -73,6 +73,15 @@ the reference transform, and playback cost. Dataset retargeting scores remain se
 The public Python decoder currently reconstructs a complete clip before playback.
 Chunked and random-access decoding are later format milestones.
 
+### SKAC v2 perceptual-plan gate
+
+`skac adaptive-plan` reconstructs its proposed rotation tracks before accepting a plan.
+It applies the current preset's maximum local-rotation and global-position limits, and
+writes both machine-readable JSON and a self-contained bilingual SVG. Estimated
+rotation payload bytes are measured before entropy coding and are never presented as a
+final compression ratio. This planning gate does not change or replace the SKAC v1
+same-character gate.
+
 ### Native Runtime Beta gate
 
 The generated Release fixture adds engine-facing regression limits without replacing

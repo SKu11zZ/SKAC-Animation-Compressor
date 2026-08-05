@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="586" viewBox="0 0 1280 586">
+<style>
+text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#141414}
+.title{font-size:32px;font-weight:700}.sub{font-size:14px;fill:#686868}
+.value{font-size:25px;font-weight:700}.label{font-size:12px;fill:#666}
+.row{font-size:12px}.small{font-size:11px;fill:#737373}
+</style>
+<rect width="1280" height="586" fill="#f5f4f0"/>
+<text x="52" y="58" class="title">SKAC v2 Perceptual Plan / 感知规划</text>
+<text x="52" y="86" class="sub">Deterministic planning only · no model required · high quality</text>
+<rect x="1084" y="36" width="144" height="42" rx="21" fill="#ff5c35"/>
+<text x="1156" y="62" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">PASS / 通过</text>
+<rect x="52" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
+<text x="72" y="160" class="value">4</text>
+<text x="72" y="190" class="label">Segments / 分段</text>
+<rect x="346" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
+<text x="366" y="160" class="value">12.31</text>
+<text x="366" y="190" class="label">Mean bits / 平均位宽</text>
+<rect x="640" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
+<text x="660" y="160" class="value">336</text>
+<text x="660" y="190" class="label">Rotation keys / 旋转关键帧</text>
+<rect x="934" y="116" width="270" height="102" rx="12" fill="#fff" stroke="#d8d5cf"/>
+<text x="954" y="160" class="value">0.03440°</text>
+<text x="954" y="190" class="label">Max rotation error / 最大旋转误差</text>
+<text x="52" y="268" font-size="19" font-weight="700">Joint allocation / 关节分配</text>
+<text x="52" y="292" class="sub">Perceptual importance controls the error budget; bars show average selected bits.</text>
+<text x="52" y="313" class="small">感知权重决定误差预算，右侧色条显示各关节平均选择位宽。</text>
+<text x="52" y="364" class="row">Root</text>
+<rect x="340" y="350" width="180" height="16" rx="8" fill="#dfdcd5"/>
+<rect x="340" y="350" width="180.00" height="16" rx="8" fill="#222"/>
+<text x="530" y="363" class="small">1.00</text>
+<rect x="600" y="350" width="550" height="16" rx="8" fill="#e6e3dd"/>
+<rect x="600" y="350" width="385.00" height="16" rx="8" fill="#ff5c35"/>
+<text x="995.00" y="363" class="small">14.0 bit</text>
+<text x="52" y="393" class="row">Spine</text>
+<rect x="340" y="379" width="180" height="16" rx="8" fill="#dfdcd5"/>
+<rect x="340" y="379" width="155.40" height="16" rx="8" fill="#222"/>
+<text x="530" y="392" class="small">0.86</text>
+<rect x="600" y="379" width="550" height="16" rx="8" fill="#e6e3dd"/>
+<rect x="600" y="379" width="330.00" height="16" rx="8" fill="#ff5c35"/>
+<text x="940.00" y="392" class="small">12.0 bit</text>
+<text x="52" y="422" class="row">Hand</text>
+<rect x="340" y="408" width="180" height="16" rx="8" fill="#dfdcd5"/>
+<rect x="340" y="408" width="110.86" height="16" rx="8" fill="#222"/>
+<text x="530" y="421" class="small">0.62</text>
+<rect x="600" y="408" width="550" height="16" rx="8" fill="#e6e3dd"/>
+<rect x="600" y="408" width="330.00" height="16" rx="8" fill="#ff5c35"/>
+<text x="940.00" y="421" class="small">12.0 bit</text>
+<text x="52" y="451" class="row">Finger</text>
+<rect x="340" y="437" width="180" height="16" rx="8" fill="#dfdcd5"/>
+<rect x="340" y="437" width="79.22" height="16" rx="8" fill="#222"/>
+<text x="530" y="450" class="small">0.44</text>
+<rect x="600" y="437" width="550" height="16" rx="8" fill="#e6e3dd"/>
+<rect x="600" y="437" width="330.00" height="16" rx="8" fill="#ff5c35"/>
+<text x="940.00" y="450" class="small">12.0 bit</text>
+<line x1="52" y1="528" x2="1228" y2="528" stroke="#d4d1cb"/>
+<text x="52" y="546" class="small">Planned payload is pre-entropy rotation data only; it is not reported as final compression ratio.</text>
+<text x="1228" y="546" text-anchor="end" class="small">Plan 891f41481c57</text>
+</svg>

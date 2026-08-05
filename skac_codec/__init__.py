@@ -1,5 +1,12 @@
 """Public reference implementation of the SKAC animation container and codec."""
 
+from .adaptive import (
+    adaptive_segments,
+    build_adaptive_plan,
+    joint_perceptual_importance,
+    write_adaptive_plan_json,
+    write_adaptive_plan_svg,
+)
 from .bvh import read_bvh, write_bvh
 from .format import (
     CodecSettings,
@@ -52,6 +59,8 @@ __all__ = [
     "SkacPack",
     "SkacPackError",
     "SkacFormatError",
+    "adaptive_segments",
+    "build_adaptive_plan",
     "decode_bytes",
     "decode_pack",
     "encode_bytes",
@@ -64,6 +73,7 @@ __all__ = [
     "inspect_pack_bytes",
     "inspect_pack_file",
     "inject_bvh_into_fbx",
+    "joint_perceptual_importance",
     "read_bvh",
     "read_skac",
     "read_pack",
@@ -76,6 +86,8 @@ __all__ = [
     "runtime_skeleton_dict",
     "save_runtime_skeleton",
     "validate_fbx",
+    "write_adaptive_plan_json",
+    "write_adaptive_plan_svg",
     "write_bvh",
     "write_skac",
     "write_pack",
