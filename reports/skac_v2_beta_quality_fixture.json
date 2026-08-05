@@ -29,7 +29,7 @@
       "unit": "absolute"
     },
     {
-      "actual": 314.32949589407093,
+      "actual": 269.8509073736761,
       "category": "performance",
       "comparator": ">=",
       "id": "decode_realtime_factor",
@@ -39,9 +39,9 @@
     }
   ],
   "codec": {
-    "bits_per_joint_per_frame": 114.66666666666667,
-    "compression_ratio_vs_float32_channels": 1.0465116279069768,
-    "encoded_bytes": 5504,
+    "bits_per_joint_per_frame": 58.6875,
+    "compression_ratio_vs_float32_channels": 2.0447284345047922,
+    "encoded_bytes": 2817,
     "format_version": 2,
     "global_position_error_max": 0.013831009300946955,
     "global_position_error_max_height_fraction": 0.0007683894056081642,
@@ -64,9 +64,9 @@
   "evaluation_case": "same_character",
   "passed": true,
   "performance": {
-    "decode_clip_ms_median": 10.1804,
+    "decode_clip_ms_median": 11.8584,
     "decode_iterations": 5,
-    "decode_realtime_factor": 314.32949589407093
+    "decode_realtime_factor": 269.8509073736761
   },
   "profile": null,
   "runtime_diagnostics": null,

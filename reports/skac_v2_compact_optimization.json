@@ -1,0 +1,52 @@
+{
+  "containers": [
+    {
+      "file_bytes": 2919,
+      "label": "SKAC v1",
+      "metadata_bytes": 1155,
+      "payload_bytes": 1720,
+      "raw_payload_bytes": 2277
+    },
+    {
+      "file_bytes": 5504,
+      "label": "SKAC v2.0",
+      "metadata_bytes": 3366,
+      "payload_bytes": 2094,
+      "raw_payload_bytes": 3172
+    },
+    {
+      "chunk_count": 6,
+      "file_bytes": 2817,
+      "label": "SKAC v2.1",
+      "metadata_bytes": 783,
+      "payload_bytes": 1990,
+      "raw_payload_bytes": 2774,
+      "segment_count": 4
+    }
+  ],
+  "fixture": {
+    "frames": 96,
+    "joints": 4,
+    "kind": "public_synthetic",
+    "max_segment_frames": 24,
+    "min_segment_frames": 8,
+    "quality": "high"
+  },
+  "optimization": {
+    "bytes_saved_vs_v2_0": 2687,
+    "percent_smaller_vs_v2_0": 48.81904069767442
+  },
+  "reconstruction": {
+    "global_position_error_max": 0.013831009300946955,
+    "global_position_error_mean": 0.003108463533288372,
+    "root_translation_error_max": 3.552713678800501e-15,
+    "root_translation_error_mean": 2.3592239273284576e-16,
+    "rotation_error_degrees_max": 0.03440401562239779,
+    "rotation_error_degrees_mean": 0.020458414574315128,
+    "translation_error_max": 3.552713678800501e-15,
+    "translation_error_mean": 5.898059818321144e-17
+  },
+  "schema": "skac.v2_compact_optimization",
+  "schema_version": "1.0.0",
+  "scope": "Deterministic public synthetic format fixture; size and reconstruction evidence only, not a production corpus benchmark."
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+<style>
+  .title { fill:#f4f1eb; font:700 34px Arial,"Microsoft YaHei",sans-serif; }
+  .sub { fill:#a9a6a0; font:16px Arial,"Microsoft YaHei",sans-serif; }
+  .label { fill:#f4f1eb; font:700 19px Arial,"Microsoft YaHei",sans-serif; }
+  .value { fill:#f4f1eb; font:700 18px Consolas,monospace; }
+  .detail { fill:#92908b; font:14px Consolas,"Microsoft YaHei",monospace; }
+  .metric { fill:#f4f1eb; font:700 25px Consolas,monospace; }
+  .metric-label { fill:#a9a6a0; font:13px Arial,"Microsoft YaHei",sans-serif; }
+</style>
+<rect width="1200" height="650" fill="#111111"/>
+<rect x="0" y="0" width="10" height="650" fill="#ff5c35"/>
+<text x="54" y="66" class="title">SKAC v2.1 Compact Container / 紧凑容器优化</text>
+<text x="54" y="101" class="sub">Concrete file bytes · same public synthetic clip · identical high-quality gate</text>
+<text x="54" y="128" class="sub">具体文件大小 · 同一公开合成动画 · 相同 high 质量门槛</text>
+<rect x="54" y="158" width="1092" height="72" rx="8" fill="#181818" stroke="#303030"/>
+<text x="82" y="193" class="metric">2,687 B</text>
+<text x="82" y="216" class="metric-label">saved vs v2.0 / 相比 v2.0 节省</text>
+<text x="354" y="193" class="metric">48.8%</text>
+<text x="354" y="216" class="metric-label">smaller vs v2.0 / 文件缩小</text>
+<text x="626" y="193" class="metric">0.03440°</text>
+<text x="626" y="216" class="metric-label">max rotation error / 最大旋转误差</text>
+<text x="928" y="193" class="metric">0.01383</text>
+<text x="928" y="216" class="metric-label">max global position error / 最大全局位置误差</text>
+<text x="54" y="286" class="label">SKAC v1</text><rect x="252" y="262" width="700" height="38" rx="4" fill="#202020"/><rect x="252" y="262" width="371" height="38" rx="4" fill="#3a3a3a"/><text x="639" y="288" class="value">2,919 B</text><text x="252" y="324" class="detail">metadata 1,155 B  ·  payload 1,720 B</text><text x="54" y="378" class="label">SKAC v2.0</text><rect x="252" y="354" width="700" height="38" rx="4" fill="#202020"/><rect x="252" y="354" width="700" height="38" rx="4" fill="#3a3a3a"/><text x="968" y="380" class="value">5,504 B</text><text x="252" y="416" class="detail">metadata 3,366 B  ·  payload 2,094 B</text><text x="54" y="470" class="label">SKAC v2.1</text><rect x="252" y="446" width="700" height="38" rx="4" fill="#202020"/><rect x="252" y="446" width="358" height="38" rx="4" fill="#ff5c35"/><text x="626" y="472" class="value">2,817 B</text><text x="252" y="508" class="detail">metadata 783 B  ·  payload 1,990 B</text>
+<line x1="54" y1="559" x2="1146" y2="559" stroke="#303030"/>
+<text x="54" y="592" class="sub">Fixture: 96 frames · 4 joints · 4 segments · 6 chunks</text>
+<text x="54" y="620" class="sub">Public synthetic regression fixture; this is format evidence, not a production corpus benchmark.</text>
+</svg>

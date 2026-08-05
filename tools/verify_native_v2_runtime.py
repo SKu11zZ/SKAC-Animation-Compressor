@@ -13,7 +13,7 @@ import numpy as np
 
 from skac_codec.bvh import loads_bvh
 from skac_codec.format import PREFIX, decode_bytes
-from skac_codec.format_v2 import encode_v2_bytes
+from skac_codec.format_v2 import _encode_v2_0_bytes, encode_v2_bytes
 from tools.verify_native_runtime import TEST_BVH
 
 
@@ -36,21 +36,26 @@ def _raw_chunks(encoded: bytes) -> bytes:
     )
     payload = encoded[payload_start : payload_start + payload_size]
     result = bytearray()
+    implicit_offset = 0
     for chunk in metadata["chunks"]:
-        start = int(chunk["offset"])
-        end = start + int(chunk["compressed_bytes"])
+        if isinstance(chunk, dict):
+            start = int(chunk["offset"])
+            compressed_bytes = int(chunk["compressed_bytes"])
+            raw_bytes = int(chunk["raw_bytes"])
+        else:
+            start = implicit_offset
+            compressed_bytes = int(chunk[2])
+            raw_bytes = int(chunk[3])
+        end = start + compressed_bytes
         raw = zlib.decompress(payload[start:end])
-        if len(raw) != int(chunk["raw_bytes"]):
+        if len(raw) != raw_bytes:
             raise AssertionError("fixture chunk size differs from its directory")
         result.extend(raw)
+        implicit_offset = end
     return bytes(result)
 
 
-def verify(probe: Path) -> dict[str, float | int | bool]:
-    source = loads_bvh(TEST_BVH)
-    encoded = encode_v2_bytes(
-        source, min_segment_frames=2, max_segment_frames=3
-    )
+def _probe_differences(probe: Path, encoded: bytes) -> tuple[float, float, int, int, int]:
     decoded = decode_bytes(encoded)
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -98,14 +103,45 @@ def verify(probe: Path) -> dict[str, float | int | bool]:
     )
     if rotation_difference > 1e-6 or translation_difference > 1e-5:
         raise AssertionError("native v2 transforms differ from Python")
+    return (
+        rotation_difference,
+        translation_difference,
+        decoded.frame_count,
+        decoded.skeleton.joint_count,
+        expected_poses,
+    )
+
+
+def verify(probe: Path) -> dict[str, float | int | bool]:
+    source = loads_bvh(TEST_BVH)
+    encoded = encode_v2_bytes(
+        source, min_segment_frames=2, max_segment_frames=3
+    )
+    legacy = _encode_v2_0_bytes(
+        source, min_segment_frames=2, max_segment_frames=3
+    )
+    (
+        rotation_difference,
+        translation_difference,
+        frame_count,
+        joint_count,
+        expected_poses,
+    ) = _probe_differences(probe, encoded)
+    legacy_rotation_difference, legacy_translation_difference, *_ = _probe_differences(
+        probe, legacy
+    )
     return {
         "passed": True,
         "format_major": struct.unpack_from("<H", encoded, 8)[0],
-        "frame_count": decoded.frame_count,
-        "joint_count": decoded.skeleton.joint_count,
+        "format_minor": struct.unpack_from("<H", encoded, 10)[0],
+        "frame_count": frame_count,
+        "joint_count": joint_count,
         "pose_count": expected_poses,
         "rotation_component_difference_max": rotation_difference,
         "translation_component_difference_max": translation_difference,
+        "legacy_v2_0_passed": True,
+        "legacy_rotation_component_difference_max": legacy_rotation_difference,
+        "legacy_translation_component_difference_max": legacy_translation_difference,
     }
 
 

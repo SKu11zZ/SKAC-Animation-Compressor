@@ -58,6 +58,16 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
   --visual reports/codec_showcase_8x20_public.svg
 ```
 
+### SKAC v2.1 compact container
+
+![SKAC v2.1 compact-container optimization](reports/skac_v2_compact_optimization.svg)
+
+On the checked-in deterministic public synthetic fixture, the compact v2.1 layout is
+2,817 bytes versus 5,504 bytes for v2.0, saving 2,687 bytes while keeping the same
+quality gate. The exact container sections and reconstruction errors are recorded in
+[`skac_v2_compact_optimization.json`](reports/skac_v2_compact_optimization.json). This
+small fixture proves the format change; it is not a production-corpus benchmark.
+
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
 its official source; this repo provides the protocol, runner, metrics, and a small
@@ -244,6 +254,15 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
   --output reports/codec_showcase_8x20_public.json \
   --visual reports/codec_showcase_8x20_public.svg
 ```
+
+### SKAC v2.1 紧凑容器
+
+![SKAC v2.1 紧凑容器优化](reports/skac_v2_compact_optimization.svg)
+
+在仓库内固定的公开合成样例上，v2.1 文件为 2,817 字节，v2.0 为 5,504 字节；在保持同一
+质量门槛的情况下减少了 2,687 字节。各容器区段和重建误差见
+[`skac_v2_compact_optimization.json`](reports/skac_v2_compact_optimization.json)。这组小样例
+用来证明格式优化确实生效，不冒充生产动画库跑分。
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的

@@ -54,10 +54,11 @@ the quality gate and writes JSON plus a bilingual SVG. Pre-entropy bytes remain 
 data, not a final compression ratio.
 
 `skac encode --format-version 2` now writes the deterministic chunked file. Every segment
-has independently checksummed rotation and translation chunks, the Python decoder reads
-v1 and v2 transparently, and the C++17 runtime inflates v2 chunks through the existing
-host callback without changing the C ABI. Progressive refinement and generated
-in-betweening are not implemented yet.
+is one independently checksummed base chunk. SKAC v2.1 compresses the skeleton, uses a
+binary segment index, and removes repeated track identifiers and directory offsets. The
+Python decoder reads v1, v2.0, and v2.1 transparently, and the C++17 runtime inflates v2
+chunks through the existing host callback without changing the C ABI. Progressive
+refinement and generated in-betweening are not implemented yet.
 
 ```text
 skac adaptive-plan source.bvh -o reports/plan.json --visual reports/plan.svg
@@ -76,6 +77,12 @@ The matching [`quality JSON`](reports/skac_v2_beta_quality_fixture.json) runs th
 v2 writer and decoder. Its timing is local regression evidence, not a cross-machine
 performance ranking.
 
+![SKAC v2.1 compact-container optimization](reports/skac_v2_compact_optimization.svg)
+
+The [`size and reconstruction JSON`](reports/skac_v2_compact_optimization.json) records
+concrete bytes for v1, v2.0, and v2.1 on the same deterministic public synthetic clip.
+It is a format regression fixture, not a production-corpus benchmark.
+
 <a id="chinese"></a>
 
 ## 中文
@@ -93,12 +100,14 @@ Motion Runtime 是确定性 SKAC Codec 上方的可选层。原始动画不依�
 强度自动分段，为每条轨道选择位宽与关键帧阈值，再经过真实重建门槛，输出 JSON 和中英
 双语 SVG。熵编码前的数据只用于规划，不会冒充最终压缩比。
 
-`skac encode --format-version 2` 现在会真正写出分块文件。每个分段都有独立校验的旋转块和
-位移块；Python 解码器会自动识别 v1/v2，C++17 运行时沿用现有宿主解压回调逐块打开，C ABI
-没有变化。渐进质量层与生成式补间尚未加入。
+`skac encode --format-version 2` 现在会真正写出分块文件。SKAC v2.1 把每个分段合成一个
+独立校验的基础块，同时压缩骨架、使用二进制分段索引，并删掉重复的轨道编号与目录偏移。
+Python 解码器会自动识别 v1、v2.0 和 v2.1，C++17 运行时沿用现有宿主解压回调逐块打开，
+C ABI 没有变化。渐进质量层与生成式补间尚未加入。
 
 上方同时保留感知规划图和 v2 同角色质量门槛图。对应 JSON 是可检查的本机回归记录，
-其中的时间数据不用于跨机器排名。
+其中的时间数据不用于跨机器排名。新增的 v2.1 紧凑容器图则给出同一公开合成动画在 v1、
+v2.0 和 v2.1 下的具体文件字节数与重建误差，它是格式回归证据，不是生产数据集跑分。
 
 公开格式和接口只使用版本化名称：`SKAC v1`、`SKAC v2`、`SKAC Pack v1` 和
 `SKAC Motion Runtime Beta`。

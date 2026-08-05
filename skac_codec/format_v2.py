@@ -23,6 +23,7 @@ from .format import (
     _decompress_limited,
     _encode_indices,
     _encode_rotations,
+    _encode_varuint,
     _interpolate_rotation_track,
     _interpolate_scalar_track,
     _pack_unsigned,
@@ -34,13 +35,20 @@ from .model import MotionClip, Skeleton
 
 
 VERSION_MAJOR = 2
-VERSION_MINOR = 0
+VERSION_MINOR = 1
 FLAG_CHUNKED_ZLIB = 2
-SCHEMA_VERSION = "2.0.0"
+LEGACY_SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 SEGMENT_INDEX_SCHEMA = "skac.segment_index"
 SEGMENT_INDEX_VERSION = "1.0.0"
 CODEC_NAME = "skac_v2_adaptive_segmented"
-_KNOWN_REQUIRED_ROLES = {"segment.index", "base.rotation", "base.translation"}
+_KNOWN_REQUIRED_ROLES = {
+    "base.skeleton",
+    "segment.index",
+    "base.segment",
+    "base.rotation",
+    "base.translation",
+}
 
 
 @dataclass(frozen=True)
@@ -138,7 +146,7 @@ def _compress_chunk(
     return record, compressed
 
 
-def encode_v2_bytes(
+def _encode_v2_0_bytes(
     clip: MotionClip,
     settings: CodecSettings | None = None,
     *,
@@ -218,7 +226,7 @@ def encode_v2_bytes(
 
     metadata: dict[str, Any] = {
         "schema": "skac.animation",
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": LEGACY_SCHEMA_VERSION,
         "frame_count": clip.frame_count,
         "frame_time": clip.frame_time,
         "duration_seconds": clip.duration_seconds,
@@ -255,6 +263,197 @@ def encode_v2_bytes(
     prefix = PREFIX.pack(
         MAGIC,
         VERSION_MAJOR,
+        0,
+        FLAG_CHUNKED_ZLIB,
+        len(metadata_bytes),
+        len(payload),
+        raw_payload_bytes,
+        zlib.crc32(metadata_bytes),
+        zlib.crc32(payload),
+    )
+    return prefix + metadata_bytes + payload
+
+
+def _compact_rotation_payload(
+    clip: MotionClip, start: int, end: int, tracks: list[dict[str, Any]]
+) -> bytes:
+    result = bytearray()
+    for track in tracks:
+        joint = int(track["joint"])
+        bits = int(track["bits"])
+        indices = np.asarray(
+            track["retained_frames_relative_to_segment"], dtype=np.int64
+        )
+        if not 8 <= bits <= 20 or len(indices) != int(track["key_count"]):
+            raise ValueError("planned compact rotation track is inconsistent")
+        result.append(bits)
+        result.extend(_encode_varuint(len(indices)))
+        result.extend(_encode_indices(indices))
+        result.extend(_encode_rotations(clip.local_rotations[start:end, joint][indices], bits))
+    return bytes(result)
+
+
+def _compact_translation_payload(
+    clip: MotionClip, start: int, end: int, tracks: list[dict[str, Any]]
+) -> bytes:
+    result = bytearray()
+    for track in tracks:
+        joint = int(track["joint"])
+        axis = int(track["axis"])
+        bits = int(track["bits"])
+        indices = np.asarray(
+            track["retained_frames_relative_to_segment"], dtype=np.int64
+        )
+        lower = float(track["minimum"])
+        upper = float(track["maximum"])
+        if (
+            not 0 <= axis <= 2
+            or not 8 <= bits <= 24
+            or len(indices) != int(track["key_count"])
+        ):
+            raise ValueError("planned compact translation track is inconsistent")
+        values = clip.local_translations[start:end, joint, axis][indices]
+        maximum_integer = (1 << bits) - 1
+        if upper > lower:
+            quantized = np.rint(
+                np.clip((values - lower) / (upper - lower), 0.0, 1.0)
+                * maximum_integer
+            ).astype(np.uint32)
+        else:
+            quantized = np.zeros(len(indices), dtype=np.uint32)
+        result.append(bits)
+        result.extend(_encode_varuint(len(indices)))
+        result.extend(struct.pack("<dd", lower, upper))
+        result.extend(_encode_indices(indices))
+        result.extend(_pack_unsigned(quantized, bits))
+    return bytes(result)
+
+
+def _compact_segment_bytes(
+    clip: MotionClip,
+    start: int,
+    end: int,
+    rotation_tracks: list[dict[str, Any]],
+    translation_tracks: list[dict[str, Any]],
+) -> bytes:
+    rotation = _compact_rotation_payload(clip, start, end, rotation_tracks)
+    translation = _compact_translation_payload(clip, start, end, translation_tracks)
+    return (
+        b"BSEG"
+        + struct.pack("<HII", 1, len(rotation), len(translation))
+        + rotation
+        + translation
+    )
+
+
+def _compact_segment_index(segment_lengths: list[int]) -> bytes:
+    result = bytearray(b"SIDX")
+    result.extend(struct.pack("<H", 1))
+    result.extend(_encode_varuint(len(segment_lengths)))
+    for frame_count in segment_lengths:
+        result.extend(_encode_varuint(frame_count))
+    return bytes(result)
+
+
+def encode_v2_bytes(
+    clip: MotionClip,
+    settings: CodecSettings | None = None,
+    *,
+    min_segment_frames: int = 8,
+    max_segment_frames: int = 32,
+) -> bytes:
+    settings = settings or CodecSettings.preset("high")
+    plan, _ = build_adaptive_plan(
+        clip,
+        settings=settings,
+        min_segment_frames=min_segment_frames,
+        max_segment_frames=max_segment_frames,
+    )
+    if not plan["passed"]:
+        failed = ", ".join(
+            item["id"] for item in plan["checks"] if not item["passed"]
+        )
+        raise ValueError(f"SKAC v2 quality gate failed: {failed}")
+
+    segment_records = plan["segmentation"]["segments"]
+    segment_lengths = [int(item["frame_count"]) for item in segment_records]
+    raw_chunks: list[tuple[int, bytes]] = [
+        (0, _canonical_json(clip.skeleton.to_dict())),
+        (1, _compact_segment_index(segment_lengths)),
+    ]
+    for segment in segment_records:
+        index = int(segment["index"])
+        start = int(segment["start_frame"])
+        end = int(segment["end_frame_exclusive"])
+        raw_chunks.append(
+            (
+                2,
+                _compact_segment_bytes(
+                    clip,
+                    start,
+                    end,
+                    [
+                        item
+                        for item in plan["rotation_tracks"]
+                        if int(item["segment"]) == index
+                    ],
+                    [
+                        item
+                        for item in plan["translation_tracks"]
+                        if int(item["segment"]) == index
+                    ],
+                ),
+            )
+        )
+
+    directory: list[list[int]] = []
+    compressed_chunks: list[bytes] = []
+    for role, raw in raw_chunks:
+        compressed = zlib.compress(raw, level=settings.zlib_level)
+        directory.append(
+            [
+                role,
+                1,
+                len(compressed),
+                len(raw),
+                zlib.crc32(compressed),
+                zlib.crc32(raw),
+            ]
+        )
+        compressed_chunks.append(compressed)
+    payload = b"".join(compressed_chunks)
+    raw_payload_bytes = sum(len(raw) for _, raw in raw_chunks)
+    metadata: dict[str, Any] = {
+        "schema": "skac.animation",
+        "schema_version": SCHEMA_VERSION,
+        "frame_count": clip.frame_count,
+        "frame_time": clip.frame_time,
+        "skeleton_sha256": clip.skeleton.signature(),
+        "codec": {
+            "name": CODEC_NAME,
+            "quality": settings.quality_name,
+            "plan_sha256": plan["plan_sha256"],
+            "rotation_keyframes": plan["summary"]["planned_rotation_key_count"],
+            "translation_keyframes": plan["summary"]["planned_translation_key_count"],
+            "rotation_bits_weighted_mean": plan["summary"][
+                "planned_rotation_bits_weighted_mean"
+            ],
+            "translation_bits_weighted_mean": plan["summary"][
+                "planned_translation_bits_weighted_mean"
+            ],
+            "compression": "chunked-zlib",
+        },
+        "chunk_roles": ["base.skeleton", "segment.index", "base.segment"],
+        "chunks": directory,
+    }
+    metadata_bytes = _canonical_json(metadata)
+    if len(metadata_bytes) > MAX_METADATA_BYTES:
+        raise ValueError("metadata exceeds the format limit")
+    if raw_payload_bytes > MAX_RAW_PAYLOAD_BYTES:
+        raise ValueError("raw payload exceeds the format limit")
+    prefix = PREFIX.pack(
+        MAGIC,
+        VERSION_MAJOR,
         VERSION_MINOR,
         FLAG_CHUNKED_ZLIB,
         len(metadata_bytes),
@@ -272,36 +471,72 @@ def _integer(value: Any, label: str) -> int:
     return value
 
 
-def _parse_chunks(value: Any, payload_size: int) -> tuple[_Chunk, ...]:
+def _parse_chunks(
+    value: Any, payload_size: int, role_names: Any = None
+) -> tuple[_Chunk, ...]:
     if not isinstance(value, list) or not value:
         raise SkacFormatError("v2 chunk directory must be a non-empty array")
     chunks: list[_Chunk] = []
     identifiers: set[str] = set()
     expected_offset = 0
+    compact_roles: list[str] | None = None
+    if role_names is not None:
+        if (
+            not isinstance(role_names, list)
+            or not role_names
+            or not all(isinstance(item, str) and item for item in role_names)
+            or len(set(role_names)) != len(role_names)
+        ):
+            raise SkacFormatError("v2 compact role table is invalid")
+        compact_roles = role_names
     for index, item in enumerate(value):
-        if not isinstance(item, dict):
-            raise SkacFormatError("v2 chunk directory entry must be an object")
-        try:
-            identifier = item["id"]
-            role = item["role"]
-            required = item["required"]
-            compression = item["compression"]
+        if compact_roles is not None:
+            if not isinstance(item, list) or len(item) != 6:
+                raise SkacFormatError("v2 compact chunk entry must contain six integers")
+            values = [
+                _integer(value, f"chunks[{index}]") for value in item
+            ]
+            role_index, required_integer, compressed_bytes, raw_bytes, crc, raw_crc = values
+            if not 0 <= role_index < len(compact_roles) or required_integer not in (0, 1):
+                raise SkacFormatError("v2 compact chunk role or flags are invalid")
+            identifier = f"chunk.{index:06d}"
+            role = compact_roles[role_index]
+            required = bool(required_integer)
+            compression = "zlib"
             chunk = _Chunk(
-                identifier=str(identifier),
-                role=str(role),
-                required=bool(required),
-                offset=_integer(item["offset"], f"chunks[{index}].offset"),
-                compressed_bytes=_integer(
-                    item["compressed_bytes"], f"chunks[{index}].compressed_bytes"
-                ),
-                raw_bytes=_integer(item["raw_bytes"], f"chunks[{index}].raw_bytes"),
-                crc32=_integer(item["crc32"], f"chunks[{index}].crc32"),
-                raw_crc32=_integer(
-                    item["raw_crc32"], f"chunks[{index}].raw_crc32"
-                ),
+                identifier=identifier,
+                role=role,
+                required=required,
+                offset=expected_offset,
+                compressed_bytes=compressed_bytes,
+                raw_bytes=raw_bytes,
+                crc32=crc,
+                raw_crc32=raw_crc,
             )
-        except KeyError as error:
-            raise SkacFormatError("v2 chunk directory entry is incomplete") from error
+        else:
+            if not isinstance(item, dict):
+                raise SkacFormatError("v2 chunk directory entry must be an object")
+            try:
+                identifier = item["id"]
+                role = item["role"]
+                required = item["required"]
+                compression = item["compression"]
+                chunk = _Chunk(
+                    identifier=str(identifier),
+                    role=str(role),
+                    required=bool(required),
+                    offset=_integer(item["offset"], f"chunks[{index}].offset"),
+                    compressed_bytes=_integer(
+                        item["compressed_bytes"], f"chunks[{index}].compressed_bytes"
+                    ),
+                    raw_bytes=_integer(item["raw_bytes"], f"chunks[{index}].raw_bytes"),
+                    crc32=_integer(item["crc32"], f"chunks[{index}].crc32"),
+                    raw_crc32=_integer(
+                        item["raw_crc32"], f"chunks[{index}].raw_crc32"
+                    ),
+                )
+            except KeyError as error:
+                raise SkacFormatError("v2 chunk directory entry is incomplete") from error
         if not isinstance(identifier, str) or not identifier or identifier in identifiers:
             raise SkacFormatError("v2 chunk ids must be unique non-empty strings")
         if not isinstance(role, str) or not role:
@@ -364,9 +599,11 @@ def _parse_container(data: bytes) -> tuple[dict[str, Any], bytes, tuple[_Chunk, 
         raise SkacFormatError("metadata root must be an object")
     if metadata.get("schema") != "skac.animation" or metadata.get(
         "schema_version"
-    ) != SCHEMA_VERSION:
+    ) not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
         raise SkacFormatError("unsupported SKAC v2 metadata schema")
-    chunks = _parse_chunks(metadata.get("chunks"), len(payload))
+    chunks = _parse_chunks(
+        metadata.get("chunks"), len(payload), metadata.get("chunk_roles")
+    )
     if sum(chunk.raw_bytes for chunk in chunks) != raw_payload_size:
         raise SkacFormatError("v2 raw chunk sizes do not match the container")
     return metadata, payload, chunks
@@ -488,7 +725,7 @@ def _decode_translation_segment(
     return result
 
 
-def decode_v2_bytes(data: bytes) -> MotionClip:
+def _decode_v2_0_bytes(data: bytes) -> MotionClip:
     metadata, payload, chunks = _parse_container(data)
     try:
         frame_count = _integer(metadata["frame_count"], "frame_count")
@@ -551,6 +788,153 @@ def decode_v2_bytes(data: bytes) -> MotionClip:
     return MotionClip(skeleton, rotations, translations, frame_time)
 
 
+def _compact_role_chunk(chunks: tuple[_Chunk, ...], role: str) -> _Chunk:
+    matches = [item for item in chunks if item.role == role]
+    if len(matches) != 1:
+        raise SkacFormatError(f"SKAC v2 requires exactly one {role} chunk")
+    return matches[0]
+
+
+def _compact_segment_lengths(raw: bytes, frame_count: int) -> list[int]:
+    cursor = _ByteCursor(raw)
+    if cursor.take(4) != b"SIDX" or struct.unpack("<H", cursor.take(2))[0] != 1:
+        raise SkacFormatError("SKAC v2 compact segment index is invalid")
+    count = cursor.varuint()
+    if count <= 0 or count > frame_count:
+        raise SkacFormatError("SKAC v2 compact segment count is invalid")
+    lengths = [cursor.varuint() for _ in range(count)]
+    cursor.require_finished()
+    if any(item <= 0 for item in lengths) or sum(lengths) != frame_count:
+        raise SkacFormatError("SKAC v2 compact segments do not cover every frame")
+    return lengths
+
+
+def _decode_compact_rotation_payload(
+    raw: bytes,
+    frame_count: int,
+    expected_joints: tuple[int, ...],
+) -> dict[int, np.ndarray]:
+    cursor = _ByteCursor(raw)
+    result: dict[int, np.ndarray] = {}
+    for joint in expected_joints:
+        bits = cursor.take(1)[0]
+        key_count = cursor.varuint()
+        if not 8 <= bits <= 20:
+            raise SkacFormatError("SKAC v2 compact rotation bits are invalid")
+        indices = _decode_indices(cursor, key_count, frame_count)
+        packed_size = _packed_byte_count(key_count, 2 + 3 * bits)
+        values = _decode_rotations(cursor.take(packed_size), key_count, bits)
+        result[joint] = _interpolate_rotation_track(frame_count, indices, values)
+    cursor.require_finished()
+    return result
+
+
+def _decode_compact_translation_payload(
+    raw: bytes,
+    frame_count: int,
+    expected_components: tuple[tuple[int, int], ...],
+) -> dict[tuple[int, int], np.ndarray]:
+    cursor = _ByteCursor(raw)
+    result: dict[tuple[int, int], np.ndarray] = {}
+    for component in expected_components:
+        bits = cursor.take(1)[0]
+        key_count = cursor.varuint()
+        lower, upper = struct.unpack("<dd", cursor.take(16))
+        if (
+            not 8 <= bits <= 24
+            or not np.isfinite(lower)
+            or not np.isfinite(upper)
+            or upper < lower
+        ):
+            raise SkacFormatError("SKAC v2 compact translation track is invalid")
+        indices = _decode_indices(cursor, key_count, frame_count)
+        packed_size = _packed_byte_count(key_count, bits)
+        quantized = _unpack_unsigned(cursor.take(packed_size), key_count, bits)
+        maximum = (1 << bits) - 1
+        values = lower + quantized.astype(np.float64) * ((upper - lower) / maximum)
+        result[component] = _interpolate_scalar_track(frame_count, indices, values)
+    cursor.require_finished()
+    return result
+
+
+def _decode_v2_1_parsed(
+    metadata: dict[str, Any], payload: bytes, chunks: tuple[_Chunk, ...]
+) -> MotionClip:
+    try:
+        frame_count = _integer(metadata["frame_count"], "frame_count")
+        frame_time = float(metadata["frame_time"])
+        codec = metadata["codec"]
+    except (KeyError, TypeError, ValueError) as error:
+        raise SkacFormatError("SKAC v2 compact metadata is incomplete") from error
+    if (
+        frame_count <= 0
+        or frame_count > 100_000_000
+        or not np.isfinite(frame_time)
+        or frame_time <= 0
+        or not isinstance(codec, dict)
+        or codec.get("name") != CODEC_NAME
+    ):
+        raise SkacFormatError("SKAC v2 compact metadata is invalid")
+
+    skeleton_chunk = _compact_role_chunk(chunks, "base.skeleton")
+    index_chunk = _compact_role_chunk(chunks, "segment.index")
+    try:
+        skeleton_value = json.loads(
+            _inflate_chunk(payload, skeleton_chunk).decode("utf-8", errors="strict")
+        )
+        skeleton = Skeleton.from_dict(skeleton_value)
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as error:
+        raise SkacFormatError("SKAC v2 compact skeleton is invalid") from error
+    if skeleton.signature() != metadata.get("skeleton_sha256"):
+        raise SkacFormatError("skeleton signature does not match")
+    lengths = _compact_segment_lengths(
+        _inflate_chunk(payload, index_chunk), frame_count
+    )
+    base_chunks = [item for item in chunks if item.role == "base.segment"]
+    if len(base_chunks) != len(lengths):
+        raise SkacFormatError("SKAC v2 compact base chunks do not match the segment index")
+
+    rotation_joints = _rotation_joint_indices(skeleton)
+    translation_components = skeleton.animated_translation_components
+    rotations = np.zeros((frame_count, skeleton.joint_count, 4), dtype=np.float64)
+    rotations[..., 0] = 1.0
+    translations = np.broadcast_to(
+        skeleton.offsets, (frame_count, skeleton.joint_count, 3)
+    ).copy()
+    start = 0
+    for count, chunk in zip(lengths, base_chunks, strict=True):
+        raw = _inflate_chunk(payload, chunk)
+        cursor = _ByteCursor(raw)
+        if cursor.take(4) != b"BSEG":
+            raise SkacFormatError("SKAC v2 compact base chunk magic is invalid")
+        version, rotation_size, translation_size = struct.unpack(
+            "<HII", cursor.take(10)
+        )
+        if version != 1 or rotation_size + translation_size != len(raw) - 14:
+            raise SkacFormatError("SKAC v2 compact base chunk sizes are inconsistent")
+        rotation_raw = cursor.take(rotation_size)
+        translation_raw = cursor.take(translation_size)
+        cursor.require_finished()
+        end = start + count
+        for joint, track in _decode_compact_rotation_payload(
+            rotation_raw, count, rotation_joints
+        ).items():
+            rotations[start:end, joint] = track
+        for (joint, axis), track in _decode_compact_translation_payload(
+            translation_raw, count, translation_components
+        ).items():
+            translations[start:end, joint, axis] = track
+        start = end
+    return MotionClip(skeleton, rotations, translations, frame_time)
+
+
+def decode_v2_bytes(data: bytes) -> MotionClip:
+    metadata, payload, chunks = _parse_container(data)
+    if metadata["schema_version"] == LEGACY_SCHEMA_VERSION:
+        return _decode_v2_0_bytes(data)
+    return _decode_v2_1_parsed(metadata, payload, chunks)
+
+
 def inspect_v2_bytes(data: bytes) -> dict[str, Any]:
     metadata, _, chunks = _parse_container(data)
     decoded = decode_v2_bytes(data)
@@ -558,7 +942,7 @@ def inspect_v2_bytes(data: bytes) -> dict[str, Any]:
     return {
         "file_bytes": len(data),
         "format_major": VERSION_MAJOR,
-        "format_minor": VERSION_MINOR,
+        "format_minor": struct.unpack_from("<H", data, 10)[0],
         "frame_count": decoded.frame_count,
         "frame_time": decoded.frame_time,
         "duration_seconds": decoded.duration_seconds,
@@ -567,7 +951,11 @@ def inspect_v2_bytes(data: bytes) -> dict[str, Any]:
         "codec": {
             "name": codec.get("name"),
             "quality": codec.get("quality"),
-            "segment_count": len(metadata["segments"]),
+            "segment_count": (
+                len(metadata["segments"])
+                if metadata["schema_version"] == LEGACY_SCHEMA_VERSION
+                else sum(item.role == "base.segment" for item in chunks)
+            ),
             "chunk_count": len(chunks),
             "rotation_keyframes": codec.get("rotation_keyframes"),
             "translation_keyframes": codec.get("translation_keyframes"),

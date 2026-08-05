@@ -31,7 +31,8 @@ constexpr uint32_t kFlagZlib = 1;
 constexpr uint32_t kFlagChunkedZlib = 2;
 constexpr uint16_t kFormatMajor = 1;
 constexpr uint16_t kFormatMajorV2 = 2;
-constexpr uint16_t kFormatMinor = 0;
+constexpr uint16_t kFormatMinorV1 = 0;
+constexpr uint16_t kFormatMinorV2 = 1;
 constexpr uint64_t kMaxMetadataBytes = 8ull * 1024ull * 1024ull;
 constexpr uint64_t kMaxRawPayloadBytes = 512ull * 1024ull * 1024ull;
 constexpr double kSmallestThreeLimit = 0.70710678118654752440;
@@ -681,14 +682,17 @@ SKAC_STANDARD::vector<SKAC_STANDARD::pair<uint32_t, uint32_t>> expected_translat
     return result;
 }
 
-SKAC_STANDARD::unique_ptr<skac_decoder_impl> initialize_decoder(const Json& root) {
+SKAC_STANDARD::unique_ptr<skac_decoder_impl> initialize_decoder(
+    const Json& root,
+    const Json& skeleton_value
+) {
     auto decoder = SKAC_STANDARD::make_unique<skac_decoder_impl>();
     decoder->frame_count = u32_value(member(root, "frame_count"), "frame_count");
     decoder->frame_time = number_value(member(root, "frame_time"), "frame_time");
     if (decoder->frame_count == 0 || decoder->frame_time <= 0.0) {
         fail(SKAC_INVALID_FORMAT, "animation timing is invalid");
     }
-    decoder->skeleton = parse_skeleton(member(root, "skeleton"));
+    decoder->skeleton = parse_skeleton(skeleton_value);
     decoder->skeleton_sha256 = string_value(member(root, "skeleton_sha256"), "skeleton_sha256");
     if (decoder->skeleton_sha256.size() != 64) {
         fail(SKAC_INVALID_FORMAT, "skeleton SHA-256 declaration has the wrong length");
@@ -728,7 +732,7 @@ SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_raw(
         string_value(member(root, "schema_version"), "schema_version") != "1.0.0") {
         fail(SKAC_UNSUPPORTED, "unsupported animation metadata schema");
     }
-    auto decoder = initialize_decoder(root);
+    auto decoder = initialize_decoder(root, member(root, "skeleton"));
 
     const Json& codec = member(root, "codec");
     if (string_value(member(codec, "name"), "codec.name") != "key_reduced_smallest_three_v1") {
@@ -958,6 +962,211 @@ void require_matching_segments(
     }
 }
 
+SKAC_STANDARD::vector<V2Chunk> parse_v2_compact_chunks(
+    const Json& root,
+    size_t payload_size,
+    size_t declared_raw_size
+) {
+    SKAC_STANDARD::vector<SKAC_STANDARD::string> roles;
+    SKAC_STANDARD::map<SKAC_STANDARD::string, bool> unique_roles;
+    for (const Json& item : array_value(member(root, "chunk_roles"), "chunk_roles")) {
+        const auto role = string_value(item, "chunk role");
+        if (role.empty() || !unique_roles.emplace(role, true).second) {
+            fail(SKAC_INVALID_FORMAT, "v2 compact roles must be unique and non-empty");
+        }
+        roles.push_back(role);
+    }
+    if (roles.empty()) fail(SKAC_INVALID_FORMAT, "v2 compact role table is empty");
+
+    SKAC_STANDARD::vector<V2Chunk> chunks;
+    size_t expected_offset = 0;
+    size_t raw_total = 0;
+    for (const Json& item : array_value(member(root, "chunks"), "chunks")) {
+        const auto& fields = array_value(item, "compact chunk");
+        if (fields.size() != 6) fail(SKAC_INVALID_FORMAT, "v2 compact chunk must contain six integers");
+        const uint32_t role_index = u32_value(fields[0], "chunk role index");
+        const uint32_t required = u32_value(fields[1], "chunk required flag");
+        if (role_index >= roles.size() || required > 1) {
+            fail(SKAC_INVALID_FORMAT, "v2 compact chunk role or flags are invalid");
+        }
+        V2Chunk chunk;
+        chunk.id = "chunk." + SKAC_STANDARD::to_string(chunks.size());
+        chunk.role = roles[role_index];
+        chunk.required = required == 1;
+        chunk.offset = expected_offset;
+        chunk.compressed_size = u32_value(fields[2], "chunk compressed bytes");
+        chunk.raw_size = u32_value(fields[3], "chunk raw bytes");
+        chunk.crc = u32_value(fields[4], "chunk crc");
+        chunk.raw_crc = u32_value(fields[5], "chunk raw crc");
+        if (chunk.required && chunk.role != "base.skeleton" &&
+            chunk.role != "segment.index" && chunk.role != "base.segment") {
+            fail(SKAC_UNSUPPORTED, "v2 compact file contains an unknown required chunk role");
+        }
+        if (chunk.compressed_size == 0 || chunk.compressed_size > payload_size - expected_offset ||
+            chunk.raw_size > kMaxRawPayloadBytes - raw_total) {
+            fail(SKAC_INVALID_FORMAT, "v2 compact chunk range is invalid");
+        }
+        expected_offset += chunk.compressed_size;
+        raw_total += chunk.raw_size;
+        chunks.push_back(SKAC_STANDARD::move(chunk));
+    }
+    if (chunks.empty() || expected_offset != payload_size || raw_total != declared_raw_size) {
+        fail(SKAC_INVALID_FORMAT, "v2 compact chunks do not cover the container");
+    }
+    return chunks;
+}
+
+const V2Chunk& unique_v2_role(
+    const SKAC_STANDARD::vector<V2Chunk>& chunks,
+    const char* role
+) {
+    const V2Chunk* result = nullptr;
+    for (const V2Chunk& chunk : chunks) {
+        if (chunk.role != role) continue;
+        if (result != nullptr) fail(SKAC_INVALID_FORMAT, "v2 compact role is repeated");
+        result = &chunk;
+    }
+    if (result == nullptr) fail(SKAC_INVALID_FORMAT, "v2 compact required role is missing");
+    return *result;
+}
+
+SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_v2_1_container(
+    const Json& root,
+    const uint8_t* payload,
+    size_t payload_size,
+    size_t declared_raw_size,
+    skac_inflate_fn inflate,
+    void* user_data
+) {
+    const Json& codec = member(root, "codec");
+    if (string_value(member(codec, "name"), "codec.name") != "skac_v2_adaptive_segmented") {
+        fail(SKAC_UNSUPPORTED, "unsupported v2 compact codec payload");
+    }
+    const auto chunks = parse_v2_compact_chunks(root, payload_size, declared_raw_size);
+    const V2Chunk& skeleton_chunk = unique_v2_role(chunks, "base.skeleton");
+    const V2Chunk& index_chunk = unique_v2_role(chunks, "segment.index");
+    const auto skeleton_raw = inflate_v2_chunk(payload, skeleton_chunk, inflate, user_data);
+    const Json skeleton_root = JsonParser(
+        reinterpret_cast<const char*>(skeleton_raw.data()), skeleton_raw.size()
+    ).parse();
+    auto decoder = initialize_decoder(root, skeleton_root);
+    const auto rotation_joints = expected_rotation_joints(decoder->skeleton);
+    const auto translation_components = expected_translation_components(decoder->skeleton);
+
+    const auto index_raw = inflate_v2_chunk(payload, index_chunk, inflate, user_data);
+    Cursor index_cursor(index_raw.data(), index_raw.size());
+    if (SKAC_STANDARD::memcmp(index_cursor.take(4), "SIDX", 4) != 0 || index_cursor.u16() != 1) {
+        fail(SKAC_INVALID_FORMAT, "v2 compact segment index header is invalid");
+    }
+    const uint32_t segment_count = index_cursor.varuint();
+    if (segment_count == 0 || segment_count > decoder->frame_count) {
+        fail(SKAC_INVALID_FORMAT, "v2 compact segment count is invalid");
+    }
+    SKAC_STANDARD::vector<uint32_t> segment_lengths;
+    uint64_t covered_frames = 0;
+    for (uint32_t index = 0; index < segment_count; ++index) {
+        const uint32_t length = index_cursor.varuint();
+        if (length == 0) fail(SKAC_INVALID_FORMAT, "v2 compact segment length is zero");
+        covered_frames += length;
+        segment_lengths.push_back(length);
+    }
+    index_cursor.finished();
+    if (covered_frames != decoder->frame_count) {
+        fail(SKAC_INVALID_FORMAT, "v2 compact segments do not cover every frame");
+    }
+    SKAC_STANDARD::vector<const V2Chunk*> base_chunks;
+    for (const V2Chunk& chunk : chunks) {
+        if (chunk.role == "base.segment") base_chunks.push_back(&chunk);
+    }
+    if (base_chunks.size() != segment_lengths.size()) {
+        fail(SKAC_INVALID_FORMAT, "v2 compact base chunks do not match the segment index");
+    }
+
+    uint32_t global_start = 0;
+    for (size_t segment_index = 0; segment_index < base_chunks.size(); ++segment_index) {
+        const uint32_t frame_count = segment_lengths[segment_index];
+        const auto raw = inflate_v2_chunk(payload, *base_chunks[segment_index], inflate, user_data);
+        Cursor segment_cursor(raw.data(), raw.size());
+        if (SKAC_STANDARD::memcmp(segment_cursor.take(4), "BSEG", 4) != 0 || segment_cursor.u16() != 1) {
+            fail(SKAC_INVALID_FORMAT, "v2 compact base segment header is invalid");
+        }
+        const uint32_t rotation_size = segment_cursor.u32();
+        const uint32_t translation_size = segment_cursor.u32();
+        if (static_cast<uint64_t>(rotation_size) + translation_size != raw.size() - 14) {
+            fail(SKAC_INVALID_FORMAT, "v2 compact base segment sizes are inconsistent");
+        }
+
+        Cursor rotation_cursor(segment_cursor.take(rotation_size), rotation_size);
+        for (uint32_t joint : rotation_joints) {
+            const uint32_t bits_per_component = rotation_cursor.u8();
+            const uint32_t key_count = rotation_cursor.varuint();
+            if (bits_per_component < 8 || bits_per_component > 20) {
+                fail(SKAC_INVALID_FORMAT, "v2 compact rotation bits are invalid");
+            }
+            const auto indices = decode_indices(rotation_cursor, key_count, frame_count);
+            const size_t byte_count = packed_bytes(key_count, 2 + 3 * bits_per_component);
+            BitReader bit_reader(rotation_cursor.take(byte_count), byte_count);
+            SKAC_STANDARD::vector<Quaternion> values;
+            values.reserve(key_count);
+            for (uint32_t key = 0; key < key_count; ++key) {
+                values.push_back(decode_quaternion(bit_reader, bits_per_component));
+            }
+            size_t interpolation_segment = 0;
+            for (uint32_t frame = 0; frame < frame_count; ++frame) {
+                Quaternion value = values.front();
+                if (values.size() > 1) {
+                    while (interpolation_segment + 1 < indices.size() - 1 &&
+                           frame > indices[interpolation_segment + 1]) ++interpolation_segment;
+                    const uint32_t start = indices[interpolation_segment];
+                    const uint32_t end = indices[interpolation_segment + 1];
+                    const double amount = static_cast<double>(frame - start) / static_cast<double>(end - start);
+                    value = slerp(values[interpolation_segment], values[interpolation_segment + 1], amount);
+                }
+                decoder->rotations[pose_index(*decoder, global_start + frame, joint)] = value;
+            }
+        }
+        rotation_cursor.finished();
+
+        Cursor translation_cursor(segment_cursor.take(translation_size), translation_size);
+        for (const auto& component : translation_components) {
+            const uint32_t bits_per_value = translation_cursor.u8();
+            const uint32_t key_count = translation_cursor.varuint();
+            const double lower = translation_cursor.f64();
+            const double upper = translation_cursor.f64();
+            if (bits_per_value < 8 || bits_per_value > 24 || upper < lower) {
+                fail(SKAC_INVALID_FORMAT, "v2 compact translation track is invalid");
+            }
+            const auto indices = decode_indices(translation_cursor, key_count, frame_count);
+            const size_t byte_count = packed_bytes(key_count, bits_per_value);
+            BitReader bit_reader(translation_cursor.take(byte_count), byte_count);
+            const double maximum = static_cast<double>((uint64_t{1} << bits_per_value) - 1);
+            SKAC_STANDARD::vector<double> values;
+            values.reserve(key_count);
+            for (uint32_t key = 0; key < key_count; ++key) {
+                values.push_back(lower + (static_cast<double>(bit_reader.read(bits_per_value)) / maximum) * (upper - lower));
+            }
+            size_t interpolation_segment = 0;
+            for (uint32_t frame = 0; frame < frame_count; ++frame) {
+                double value = values.front();
+                if (values.size() > 1) {
+                    while (interpolation_segment + 1 < indices.size() - 1 &&
+                           frame > indices[interpolation_segment + 1]) ++interpolation_segment;
+                    const uint32_t start = indices[interpolation_segment];
+                    const uint32_t end = indices[interpolation_segment + 1];
+                    const double amount = static_cast<double>(frame - start) / static_cast<double>(end - start);
+                    value = values[interpolation_segment] + amount *
+                        (values[interpolation_segment + 1] - values[interpolation_segment]);
+                }
+                decoder->translations[pose_index(*decoder, global_start + frame, component.first)][component.second] = value;
+            }
+        }
+        translation_cursor.finished();
+        segment_cursor.finished();
+        global_start += frame_count;
+    }
+    return decoder;
+}
+
 SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_v2_container(
     const Json& root,
     const uint8_t* payload,
@@ -966,11 +1175,17 @@ SKAC_STANDARD::unique_ptr<skac_decoder_impl> decode_v2_container(
     skac_inflate_fn inflate,
     void* user_data
 ) {
-    if (string_value(member(root, "schema"), "schema") != "skac.animation" ||
-        string_value(member(root, "schema_version"), "schema_version") != "2.0.0") {
+    const auto schema = string_value(member(root, "schema"), "schema");
+    const auto schema_version = string_value(member(root, "schema_version"), "schema_version");
+    if (schema == "skac.animation" && schema_version == "2.1.0") {
+        return decode_v2_1_container(
+            root, payload, payload_size, declared_raw_size, inflate, user_data
+        );
+    }
+    if (schema != "skac.animation" || schema_version != "2.0.0") {
         fail(SKAC_UNSUPPORTED, "unsupported v2 animation metadata schema");
     }
-    auto decoder = initialize_decoder(root);
+    auto decoder = initialize_decoder(root, member(root, "skeleton"));
     const Json& codec = member(root, "codec");
     if (string_value(member(codec, "name"), "codec.name") != "skac_v2_adaptive_segmented") {
         fail(SKAC_UNSUPPORTED, "unsupported v2 codec payload");
@@ -1477,8 +1692,8 @@ skac_result skac_decoder_open_container(
         const uint64_t raw_size = read_u64(container + 28);
         const uint32_t metadata_crc = read_u32(container + 36);
         const uint32_t payload_crc = read_u32(container + 40);
-        const bool is_v1 = major == kFormatMajor && minor <= kFormatMinor && flags == kFlagZlib;
-        const bool is_v2 = major == kFormatMajorV2 && minor <= kFormatMinor && flags == kFlagChunkedZlib;
+        const bool is_v1 = major == kFormatMajor && minor <= kFormatMinorV1 && flags == kFlagZlib;
+        const bool is_v2 = major == kFormatMajorV2 && minor <= kFormatMinorV2 && flags == kFlagChunkedZlib;
         if (!is_v1 && !is_v2) fail(SKAC_UNSUPPORTED, "container version or flags are unsupported");
         if (metadata_size > kMaxMetadataBytes || raw_size > kMaxRawPayloadBytes) fail(SKAC_INVALID_FORMAT, "container declarations exceed limits");
         if (payload_size > SKAC_STANDARD::numeric_limits<size_t>::max() || raw_size > SKAC_STANDARD::numeric_limits<size_t>::max()) {

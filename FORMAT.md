@@ -92,31 +92,39 @@ new major version.
 SKAC v2 is the deterministic, chunked evolution of the same Codec. It does not require
 a model and does not change the meaning of an authored clip. Use
 `skac encode --format-version 2` to write it; the Python reader and C++17 runtime accept
-both v1 and v2.
+v1, v2.0, and v2.1. The current writer emits v2.1; v2.0 remains a read-compatible
+legacy layout.
 
 The fixed prefix keeps the same 44-byte layout with major version `2` and flags value
-`2`. The payload is a concatenation of independently zlib-compressed chunks. Canonical
-metadata contains an ordered directory with each chunk's id, role, required flag,
-offset, compressed and raw sizes, plus CRC-32 values for both representations. The
-container also retains a CRC over the complete compressed payload.
+`2`. v2.1 sets the minor version to `1`. The payload is a concatenation of independently
+zlib-compressed chunks. Compact metadata stores a role string table and an ordered
+array directory. Each entry contains a role-table index, required flag, compressed and
+raw sizes, and CRC-32 values for both representations. Offsets are implicit cumulative
+positions, so the same information is not repeated. The container also retains a CRC
+over the complete compressed payload.
 
-The implemented required roles are:
+The v2.1 required roles are:
 
-- `segment.index`: the authoritative contiguous frame ranges and their chunk ids;
-- `base.rotation`: per-segment rotation tracks with an independent bit width per joint;
-- `base.translation`: per-segment scalar translation tracks with an independent bit
-  width and bounds per component.
+- `base.skeleton`: the compressed canonical skeleton object;
+- `segment.index`: compact binary contiguous segment lengths;
+- `base.segment`: one independently decodable segment containing rotation and
+  translation base tracks.
 
-Every rotation and translation track begins at relative frame zero. Frame indices are
-delta-coded varuints. Rotation values retain smallest-three coding; translation values
-retain bounded uniform quantization. Segments are decoded independently and written into
-the final immutable pose buffer. The current runtime opens chunks independently but
-keeps the fully reconstructed clip resident for fast sampling.
+Joint ids and translation-component ids are not repeated inside v2.1 tracks; their
+ordering is derived from the skeleton. Every track begins at relative frame zero. Frame
+indices are delta-coded varuints. Rotation values retain smallest-three coding;
+translation values retain bounded uniform quantization. Segments remain independently
+checksummed, decoded, and written into the final immutable pose buffer. The current
+runtime opens chunks independently but keeps the fully reconstructed clip resident for
+fast sampling.
+
+The v2.0 directory and its separate `base.rotation` and `base.translation` chunks are
+still accepted by both reference readers. New encoders should use v2.1. A reader must
+reject unknown required roles and may skip unknown optional roles.
 
 For v2, the CLI's `rotation_bits` and `translation_bits` settings are upper bounds for
 the adaptive candidate set rather than one uniform width applied to every track.
 
-Unknown required chunk roles are rejected. Unknown optional roles may be skipped.
 Future refinement, semantics, contact, or generated-motion data must remain optional;
 the base layer always decodes without a model. Model weights and their storage, memory,
 hardware, and latency are reported separately from Codec results.

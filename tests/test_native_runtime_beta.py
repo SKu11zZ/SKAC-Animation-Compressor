@@ -54,6 +54,7 @@ class NativeRuntimeBetaTests(unittest.TestCase):
         )
         self.assertIn("kFormatMajorV2 = 2", implementation)
         self.assertIn("decode_v2_container", implementation)
+        self.assertIn("decode_v2_1_container", implementation)
         self.assertIn("host v2 chunk inflation failed", implementation)
         self.assertTrue((ROOT / "native/tests/runtime_v2_probe.cpp").is_file())
         self.assertTrue((ROOT / "tools/verify_native_v2_runtime.py").is_file())
