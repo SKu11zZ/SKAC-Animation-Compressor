@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import platform
+import statistics
 import subprocess
 import sys
 import time
@@ -35,6 +36,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--baseline-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--visual", type=Path, required=True)
+    parser.add_argument("--repeats", type=int, default=3)
     return parser.parse_args(argv)
 
 
@@ -119,25 +121,53 @@ def _optimized_measure(path: Path) -> dict[str, Any]:
     }
 
 
-def build_report(data_root: Path, baseline_root: Path) -> dict[str, Any]:
+def build_report(
+    data_root: Path, baseline_root: Path, repeats: int = 3
+) -> dict[str, Any]:
     if not baseline_root.is_dir():
         raise ValueError("the detached baseline root is missing")
+    if repeats < 1:
+        raise ValueError("repeats must be positive")
     samples: list[dict[str, Any]] = []
     for label, frames, path in _selection(data_root):
-        baseline = _baseline_measure(path, baseline_root)
-        optimized = _optimized_measure(path)
-        identical = baseline["plan_sha256"] == optimized["plan_sha256"]
+        baseline_runs: list[dict[str, Any]] = []
+        optimized_runs: list[dict[str, Any]] = []
+        for _ in range(repeats):
+            baseline_runs.append(_baseline_measure(path, baseline_root))
+            optimized_runs.append(_optimized_measure(path))
+        baseline = baseline_runs[0]
+        optimized = optimized_runs[0]
+        baseline_seconds = statistics.median(
+            float(item["seconds"]) for item in baseline_runs
+        )
+        optimized_seconds = statistics.median(
+            float(item["seconds"]) for item in optimized_runs
+        )
+        plan_hashes = {
+            str(item["plan_sha256"])
+            for item in (*baseline_runs, *optimized_runs)
+        }
+        identical = len(plan_hashes) == 1
         samples.append(
             {
                 "sample": label,
                 "id": path.stem,
                 "frame_count": frames,
-                "baseline_seconds": float(baseline["seconds"]),
-                "optimized_seconds": float(optimized["seconds"]),
-                "speedup": float(baseline["seconds"]) / float(optimized["seconds"]),
+                "baseline_seconds": baseline_seconds,
+                "optimized_seconds": optimized_seconds,
+                "baseline_seconds_runs": [
+                    float(item["seconds"]) for item in baseline_runs
+                ],
+                "optimized_seconds_runs": [
+                    float(item["seconds"]) for item in optimized_runs
+                ],
+                "speedup": baseline_seconds / optimized_seconds,
                 "plan_sha256": optimized["plan_sha256"],
                 "plan_identical": identical,
-                "quality_passed": bool(baseline["passed"] and optimized["passed"]),
+                "quality_passed": all(
+                    bool(item["passed"])
+                    for item in (*baseline_runs, *optimized_runs)
+                ),
                 "segment_count": int(optimized["segment_count"]),
                 "rotation_budget_attempts": int(optimized["rotation_budget_attempts"]),
             }
@@ -150,7 +180,12 @@ def build_report(data_root: Path, baseline_root: Path) -> dict[str, Any]:
         ),
         "scope": {
             "baseline": "pre_vectorized_planner",
-            "optimized": "vectorized_quantization_and_shared_threshold_tree",
+            "optimized": (
+                "vectorized_quantization_shared_threshold_tree_"
+                "candidate_cache_and_normalization_reuse"
+            ),
+            "timing_statistic": "median",
+            "timing_repeats": repeats,
             "quality": "high",
             "source_paths_in_report": False,
             "original_names_in_report": False,
@@ -192,8 +227,8 @@ def _svg(report: dict[str, Any]) -> str:
 <style>.bg{{fill:#0e1012}}.card{{fill:#171a1e;stroke:#30343a}}.title{{fill:#f3f4f6;font:700 34px Arial,sans-serif}}.sub{{fill:#9ba1aa;font:15px Arial,sans-serif}}.label{{fill:#a4aab3;font:700 12px Arial,sans-serif;letter-spacing:.5px}}.value{{fill:#f6f7f8;font:700 34px Arial,sans-serif}}.axis{{fill:#abb1ba;font:13px Arial,sans-serif}}.ok{{fill:#57f287;font:700 12px Arial,sans-serif}}.note{{fill:#858c96;font:12px Arial,sans-serif}}.raw{{fill:#e9eaec}}.accent{{fill:#7c5cff}}</style>
 <rect width="1280" height="720" class="bg"/><rect width="12" height="720" class="accent"/>
 <text x="54" y="64" class="title">SKAC v2.1 Planner Optimization / 规划器优化</text>
-<text x="54" y="98" class="sub">Vectorized smallest-three quantization + one shared threshold tree</text>
-<text x="54" y="124" class="sub">向量化旋转量化 + 多阈值共享关键帧误差树 · high quality · same deterministic output</text>
+<text x="54" y="98" class="sub">Shared error tree + candidate cache + normalized quaternion reuse</text>
+<text x="54" y="124" class="sub">共享误差树 + 候选缓存 + 四元数归一化复用 · high quality · median of repeated runs</text>
 {''.join(cards)}
 <text x="54" y="406" class="label">PLANNER TIME / 规划耗时　　WHITE = BASELINE　PURPLE = OPTIMIZED</text>
 {''.join(bars)}
@@ -204,7 +239,7 @@ def _svg(report: dict[str, Any]) -> str:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    report = build_report(args.data_root, args.baseline_root)
+    report = build_report(args.data_root, args.baseline_root, args.repeats)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.visual.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

@@ -6,11 +6,11 @@ import struct
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 
-from .math3d import quaternion_angular_error_degrees, quaternion_slerp
+from .math3d import normalize_quaternions
 from .model import MotionClip, Skeleton
 
 
@@ -213,18 +213,73 @@ def _rotation_key_indices(track: np.ndarray, threshold_degrees: float) -> np.nda
     return _rotation_key_indices_multi(track, (threshold_degrees,))[0]
 
 
+def _quaternion_slerp_unit(
+    start: np.ndarray, end: np.ndarray, amount: np.ndarray
+) -> np.ndarray:
+    """SLERP inputs that have already been normalized once."""
+    first = np.asarray(start, dtype=np.float64)
+    second = np.asarray(end, dtype=np.float64)
+    amount_array = np.asarray(amount, dtype=np.float64)
+    first, second = np.broadcast_arrays(first, second)
+    target_shape = np.broadcast_shapes(first.shape[:-1], amount_array.shape)
+    first = np.broadcast_to(first, target_shape + (4,)).reshape(-1, 4)
+    second = np.broadcast_to(second, target_shape + (4,)).reshape(-1, 4).copy()
+    amount_array = np.broadcast_to(amount_array, target_shape).reshape(-1)
+
+    dots = np.sum(first * second, axis=-1)
+    negative = dots < 0.0
+    second[negative] *= -1.0
+    dots = np.abs(dots)
+    linear = dots > 0.9995
+
+    result = np.empty_like(first)
+    if np.any(linear):
+        weights = amount_array[linear, None]
+        result[linear] = first[linear] + weights * (second[linear] - first[linear])
+    if np.any(~linear):
+        theta = np.arccos(np.clip(dots[~linear], -1.0, 1.0))
+        sine = np.sin(theta)
+        amount_values = amount_array[~linear]
+        first_weight = np.sin((1.0 - amount_values) * theta) / sine
+        second_weight = np.sin(amount_values * theta) / sine
+        result[~linear] = (
+            first_weight[:, None] * first[~linear]
+            + second_weight[:, None] * second[~linear]
+        )
+    return normalize_quaternions(result).reshape(target_shape + (4,))
+
+
+def _quaternion_angular_error_unit_left(
+    left_unit: np.ndarray, right: np.ndarray
+) -> np.ndarray:
+    """Angular error when the left operand is already normalized."""
+    right_unit = normalize_quaternions(right)
+    dots = np.abs(np.sum(left_unit * right_unit, axis=-1))
+    return np.degrees(2.0 * np.arccos(np.clip(dots, 0.0, 1.0)))
+
+
 def _rotation_key_indices_multi(
     track: np.ndarray, thresholds_degrees: Sequence[float]
 ) -> tuple[np.ndarray, ...]:
     """Compute Douglas-Peucker rotation keys for several thresholds in one tree."""
+    return _rotation_key_indices_multi_unit(
+        normalize_quaternions(track), thresholds_degrees
+    )
+
+
+def _rotation_key_indices_multi_unit(
+    unit_track: np.ndarray, thresholds_degrees: Sequence[float]
+) -> tuple[np.ndarray, ...]:
+    """Compute rotation keys for a track normalized by the caller."""
     thresholds = tuple(float(item) for item in thresholds_degrees)
     if not thresholds or any(item < 0.0 or not np.isfinite(item) for item in thresholds):
         raise ValueError("rotation thresholds must be finite and non-negative")
-    frame_count = track.shape[0]
+    frame_count = unit_track.shape[0]
     if frame_count == 1:
         return tuple(np.asarray([0], dtype=np.int64) for _ in thresholds)
-    constant_error = quaternion_angular_error_degrees(
-        track, np.broadcast_to(track[0], track.shape)
+    constant_dots = np.abs(np.sum(unit_track * unit_track[0], axis=-1))
+    constant_error = np.degrees(
+        2.0 * np.arccos(np.clip(constant_dots, 0.0, 1.0))
     )
     constant_max = float(np.max(constant_error))
     minimum = min(thresholds)
@@ -236,8 +291,12 @@ def _rotation_key_indices_multi(
             continue
         frames = np.arange(start + 1, end, dtype=np.int64)
         amount = (frames - start) / (end - start)
-        predicted = quaternion_slerp(track[start], track[end], amount)
-        errors = quaternion_angular_error_degrees(track[frames], predicted)
+        predicted = _quaternion_slerp_unit(
+            unit_track[start], unit_track[end], amount
+        )
+        errors = _quaternion_angular_error_unit_left(
+            unit_track[frames], predicted
+        )
         relative = int(np.argmax(errors))
         maximum_error = float(errors[relative])
         if maximum_error > minimum:
@@ -294,13 +353,16 @@ def _interpolate_rotation_track(
 ) -> np.ndarray:
     if len(indices) == 1:
         return np.broadcast_to(values[0], (frame_count, 4)).copy()
+    unit_values = normalize_quaternions(values)
     frames = np.arange(frame_count, dtype=np.int64)
     segments = np.searchsorted(indices, frames, side="right") - 1
     segments = np.clip(segments, 0, len(indices) - 2)
     starts = indices[segments]
     ends = indices[segments + 1]
     amount = (frames - starts) / (ends - starts)
-    return quaternion_slerp(values[segments], values[segments + 1], amount)
+    return _quaternion_slerp_unit(
+        unit_values[segments], unit_values[segments + 1], amount
+    )
 
 
 def _interpolate_scalar_track(

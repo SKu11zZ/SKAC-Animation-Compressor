@@ -6,39 +6,61 @@
   "passed": true,
   "samples": [
     {
-      "baseline_seconds": 8.263287400011905,
+      "baseline_seconds": 7.639379400003236,
+      "baseline_seconds_runs": [
+        6.84399530000519,
+        8.049426799989305,
+        7.639379400003236
+      ],
       "frame_count": 203,
       "id": "smpl_0042",
-      "optimized_seconds": 4.75070780000533,
+      "optimized_seconds": 3.0749050000158604,
+      "optimized_seconds_runs": [
+        2.4155478999891784,
+        3.4767055999836884,
+        3.0749050000158604
+      ],
       "plan_identical": true,
       "plan_sha256": "e4e59207a07edfe59de73ba2089b063ce16c04049a0529a8c22c46fe37211c1d",
       "quality_passed": true,
       "rotation_budget_attempts": 1,
       "sample": "shortest",
       "segment_count": 8,
-      "speedup": 1.7393802666631346
+      "speedup": 2.484427779057835
     },
     {
-      "baseline_seconds": 20.09528290000162,
+      "baseline_seconds": 18.063840399991022,
+      "baseline_seconds_runs": [
+        18.289032300002873,
+        17.184542000002693,
+        18.063840399991022
+      ],
       "frame_count": 546,
       "id": "smpl_0138",
-      "optimized_seconds": 11.3503571000183,
+      "optimized_seconds": 6.692730400012806,
+      "optimized_seconds_runs": [
+        6.775353099976201,
+        6.692730400012806,
+        6.482908600009978
+      ],
       "plan_identical": true,
       "plan_sha256": "54d6aa887d93d4a5527741d1b74b465bfa3819cfbe7d257510214ccf9cda5c22",
       "quality_passed": true,
       "rotation_budget_attempts": 1,
       "sample": "median",
       "segment_count": 26,
-      "speedup": 1.7704538036049298
+      "speedup": 2.699024063475866
     }
   ],
   "schema": "skac.v2_planner_optimization",
   "schema_version": "1.0.0",
   "scope": {
     "baseline": "pre_vectorized_planner",
-    "optimized": "vectorized_quantization_and_shared_threshold_tree",
+    "optimized": "vectorized_quantization_shared_threshold_tree_candidate_cache_and_normalization_reuse",
     "original_names_in_report": false,
     "quality": "high",
-    "source_paths_in_report": false
+    "source_paths_in_report": false,
+    "timing_repeats": 3,
+    "timing_statistic": "median"
   }
 }

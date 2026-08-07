@@ -13,14 +13,15 @@ from .format import (
     CodecSettings,
     _interpolate_rotation_track,
     _interpolate_scalar_track,
+    _quaternion_angular_error_unit_left,
     _rotation_joint_indices,
-    _rotation_key_indices_multi,
+    _rotation_key_indices_multi_unit,
     _scalar_key_indices,
     encode_bytes,
     quantize_rotation_samples,
     quantize_translation_samples,
 )
-from .math3d import quaternion_angular_error_degrees
+from .math3d import normalize_quaternions, quaternion_angular_error_degrees
 from .metrics import roundtrip_metrics
 from .model import MotionClip, Skeleton
 from .quality import QualityThresholds
@@ -194,23 +195,34 @@ def _plan_rotation_track(
     candidate_bits: Sequence[int],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     options: list[tuple[int, float, int, int, float, np.ndarray, np.ndarray]] = []
+    unit_track = normalize_quaternions(track)
+    quantized_tracks = {
+        int(bits): quantize_rotation_samples(track, int(bits))
+        for bits in candidate_bits
+    }
     nonzero_scales = (0.65, 0.45, 0.25)
     nonzero_thresholds = tuple(
         error_budget_degrees * scale for scale in nonzero_scales
     )
-    nonzero_indices = _rotation_key_indices_multi(track, nonzero_thresholds)
+    nonzero_indices = _rotation_key_indices_multi_unit(
+        unit_track, nonzero_thresholds
+    )
     index_options = (*nonzero_indices, np.arange(track.shape[0], dtype=np.int64))
     for threshold_scale, indices in zip(
         (*nonzero_scales, 0.0), index_options, strict=True
     ):
         threshold = error_budget_degrees * threshold_scale
         for bits in candidate_bits:
-            values = quantize_rotation_samples(track[indices], int(bits))
+            values = quantized_tracks[int(bits)][indices]
             reconstructed = _interpolate_rotation_track(
                 track.shape[0], indices, values
             )
             error = float(
-                np.max(quaternion_angular_error_degrees(track, reconstructed))
+                np.max(
+                    _quaternion_angular_error_unit_left(
+                        unit_track, reconstructed
+                    )
+                )
             )
             if error <= error_budget_degrees + 1e-12:
                 estimated_bits = (
@@ -252,6 +264,10 @@ def _plan_translation_track(
     lower = float(np.min(track))
     upper = float(np.max(track))
     options: list[tuple[int, float, int, int, float, np.ndarray, np.ndarray]] = []
+    quantized_tracks = {
+        int(bits): quantize_translation_samples(track, int(bits), lower, upper)
+        for bits in candidate_bits
+    }
     for threshold_scale in (0.65, 0.45, 0.25, 0.0):
         threshold = error_budget * threshold_scale
         indices = (
@@ -260,9 +276,7 @@ def _plan_translation_track(
             else _scalar_key_indices(track, threshold)
         )
         for bits in candidate_bits:
-            values = quantize_translation_samples(
-                track[indices], int(bits), lower, upper
-            )
+            values = quantized_tracks[int(bits)][indices]
             reconstructed = _interpolate_scalar_track(
                 track.shape[0], indices, values
             )

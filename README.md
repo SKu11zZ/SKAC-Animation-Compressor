@@ -146,16 +146,21 @@ python tools/run_fbx_codec_benchmark.py --data-root LOCAL_PUBLIC_CACHE \
 
 ![SKAC v2.1 planner optimization](reports/v2_planner_optimization_smplx.svg)
 
-The v2.1 planner no longer simulates every candidate bit width by writing and reading a
-packed bitstream. Smallest-three quantization is now vectorized, and the three keyframe
-reduction thresholds share one error tree. A detached pre-optimization commit and the
-new planner produced identical plan SHA-256 values on both checked public SMPL-X
-streams. The 203-frame sample falls from 8.26 to 4.75 seconds (1.74× faster); the
-546-frame sample falls from 20.10 to 11.35 seconds (1.77× faster).
+The planner is a bounded local candidate search, not a global Cartesian brute force.
+It still tests keyframe thresholds and candidate bit widths per rotation track, then
+reconstructs the track to enforce the quality gate. Smallest-three quantization is now
+vectorized, the reduction thresholds share one error tree, quantized candidates are
+cached, and normalized quaternions are reused across repeated SLERP checks.
+
+A detached pre-optimization commit and the current planner produced identical plan
+SHA-256 values and passed the same quality gates on both checked public SMPL-X streams.
+Using the median of three runs, the 203-frame sample falls from 7.64 to 3.07 seconds
+(2.48× faster); the 546-frame sample falls from 18.06 to 6.69 seconds (2.70× faster).
 
 This improves offline encode planning without changing runtime decode or the resulting
-plan. It does not make v2.1 cheap yet: a separate 6,361-frame observation still takes
-133.5 seconds. The checked comparison is in
+plan. It does not make v2.1 cheap yet: a separate 6,361-frame observation takes 76.45
+seconds, down from the earlier 133.5-second observation. The checked repeated-run
+comparison is in
 [`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json).
 
 It is a standalone academic project. It does not depend on product code, and it does
@@ -406,14 +411,16 @@ false。每个动画族还各取一个中性样本，完整跑通 `FBX → BVH �
 
 ![SKAC v2.1 规划器优化](reports/v2_planner_optimization_smplx.svg)
 
-v2.1 规划器不再为了测试每个候选位宽，反复把旋转写成位流再读回来。smallest-three 量化
-现在改为向量化计算，三个关键帧精简阈值也共用同一棵误差树。用优化前的 detached 提交
-做对照，两段公开 SMPL-X 动作在优化前后得到的规划 SHA‑256 完全相同，质量门槛也没有
-变化。203 帧样本从 8.26 秒降到 4.75 秒，提升 1.74 倍；546 帧样本从 20.10 秒降到
-11.35 秒，提升 1.77 倍。
+这里不是全局参数的笛卡尔积暴力穷举，而是每条旋转轨上的有限候选搜索：测试几档关键帧阈值
+和位宽，再重建轨道检查质量门槛。smallest-three 量化现在改为向量化计算，多个精简阈值共用
+同一棵误差树，相同位宽的量化结果会缓存，SLERP 检查也会复用已经归一化的四元数。
+
+用优化前的 detached 提交做对照，两段公开 SMPL-X 动作在优化前后得到的规划 SHA‑256 完全
+相同，质量门槛也没有变化。取三轮运行的中位数，203 帧样本从 7.64 秒降到 3.07 秒，提升
+2.48 倍；546 帧样本从 18.06 秒降到 6.69 秒，提升 2.70 倍。
 
 这次只降低离线编码规划成本，不改变运行时解码和最终规划结果。v2.1 还没有便宜到可以忽略：
-单独测得的 6,361 帧长动作仍需要 133.5 秒。可复现对照见
+单独测得的 6,361 帧长动作现在需要 76.45 秒，低于此前观测到的 133.5 秒。三轮可复现对照见
 [`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json)。
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。

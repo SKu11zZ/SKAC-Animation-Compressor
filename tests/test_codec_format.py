@@ -9,13 +9,19 @@ from skac_codec.format import (
     SkacFormatError,
     _decode_rotations,
     _encode_rotations,
+    _quaternion_slerp_unit,
     _rotation_key_indices,
     _rotation_key_indices_multi,
     decode_bytes,
     encode_bytes,
     quantize_rotation_samples,
+    quantize_translation_samples,
 )
-from skac_codec.math3d import euler_order_to_quaternion
+from skac_codec.math3d import (
+    euler_order_to_quaternion,
+    normalize_quaternions,
+    quaternion_slerp,
+)
 from skac_codec.metrics import roundtrip_metrics
 from skac_codec.model import MotionClip, Skeleton
 
@@ -63,6 +69,25 @@ class CodecFormatTests(unittest.TestCase):
                 quantize_rotation_samples(values, bits), expected
             )
 
+    def test_full_track_quantization_can_be_reused_for_key_subsets(self) -> None:
+        rng = np.random.default_rng(20260808)
+        rotations = rng.normal(size=(257, 4))
+        translations = rng.normal(size=257)
+        indices = np.sort(rng.choice(len(rotations), size=83, replace=False))
+        lower = float(np.min(translations))
+        upper = float(np.max(translations))
+        for bits in (8, 10, 12, 14, 16, 18, 20):
+            np.testing.assert_array_equal(
+                quantize_rotation_samples(rotations, bits)[indices],
+                quantize_rotation_samples(rotations[indices], bits),
+            )
+            np.testing.assert_array_equal(
+                quantize_translation_samples(translations, bits, lower, upper)[indices],
+                quantize_translation_samples(
+                    translations[indices], bits, lower, upper
+                ),
+            )
+
     def test_multi_threshold_rotation_keys_match_independent_runs(self) -> None:
         clip = sample_clip(37)
         track = clip.local_rotations[:, 2]
@@ -71,6 +96,19 @@ class CodecFormatTests(unittest.TestCase):
         actual = _rotation_key_indices_multi(track, thresholds)
         for left, right in zip(actual, expected, strict=True):
             np.testing.assert_array_equal(left, right)
+
+    def test_unit_slerp_matches_public_normalizing_path(self) -> None:
+        rng = np.random.default_rng(20260809)
+        starts = rng.normal(size=(113, 4))
+        ends = rng.normal(size=(113, 4))
+        amounts = np.linspace(0.0, 1.0, len(starts))
+        expected = quaternion_slerp(starts, ends, amounts)
+        actual = _quaternion_slerp_unit(
+            normalize_quaternions(starts),
+            normalize_quaternions(ends),
+            amounts,
+        )
+        np.testing.assert_array_equal(actual, expected)
 
     def test_high_quality_round_trip_is_small_and_deterministic(self) -> None:
         source = sample_clip()

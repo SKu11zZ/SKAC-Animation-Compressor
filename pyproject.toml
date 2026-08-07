@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skac-academic-benchmark"
-version = "0.15.0b3"
+version = "0.15.0b4"
 description = "Public benchmark for motion retargeting and animation codec reconstruction"
 readme = "README.md"
 requires-python = ">=3.10"
