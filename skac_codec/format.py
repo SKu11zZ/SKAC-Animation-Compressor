@@ -213,6 +213,12 @@ def _rotation_key_indices(track: np.ndarray, threshold_degrees: float) -> np.nda
     return _rotation_key_indices_multi(track, (threshold_degrees,))[0]
 
 
+def _normalize_quaternions_unchecked(value: np.ndarray) -> np.ndarray:
+    """Normalize an internal quaternion array whose shape and finiteness are known."""
+    quaternions = np.asarray(value, dtype=np.float64)
+    return quaternions / np.linalg.norm(quaternions, axis=-1, keepdims=True)
+
+
 def _quaternion_slerp_unit(
     start: np.ndarray, end: np.ndarray, amount: np.ndarray
 ) -> np.ndarray:
@@ -220,11 +226,22 @@ def _quaternion_slerp_unit(
     first = np.asarray(start, dtype=np.float64)
     second = np.asarray(end, dtype=np.float64)
     amount_array = np.asarray(amount, dtype=np.float64)
-    first, second = np.broadcast_arrays(first, second)
-    target_shape = np.broadcast_shapes(first.shape[:-1], amount_array.shape)
-    first = np.broadcast_to(first, target_shape + (4,)).reshape(-1, 4)
-    second = np.broadcast_to(second, target_shape + (4,)).reshape(-1, 4).copy()
-    amount_array = np.broadcast_to(amount_array, target_shape).reshape(-1)
+    if (
+        first.ndim == 2
+        and first.shape == second.shape
+        and first.shape[-1] == 4
+        and amount_array.shape == first.shape[:-1]
+    ):
+        target_shape = first.shape[:-1]
+        first = first.reshape(-1, 4)
+        second = second.reshape(-1, 4).copy()
+        amount_array = amount_array.reshape(-1)
+    else:
+        first, second = np.broadcast_arrays(first, second)
+        target_shape = np.broadcast_shapes(first.shape[:-1], amount_array.shape)
+        first = np.broadcast_to(first, target_shape + (4,)).reshape(-1, 4)
+        second = np.broadcast_to(second, target_shape + (4,)).reshape(-1, 4).copy()
+        amount_array = np.broadcast_to(amount_array, target_shape).reshape(-1)
 
     dots = np.sum(first * second, axis=-1)
     negative = dots < 0.0
@@ -246,14 +263,14 @@ def _quaternion_slerp_unit(
             first_weight[:, None] * first[~linear]
             + second_weight[:, None] * second[~linear]
         )
-    return normalize_quaternions(result).reshape(target_shape + (4,))
+    return _normalize_quaternions_unchecked(result).reshape(target_shape + (4,))
 
 
 def _quaternion_angular_error_unit_left(
     left_unit: np.ndarray, right: np.ndarray
 ) -> np.ndarray:
     """Angular error when the left operand is already normalized."""
-    right_unit = normalize_quaternions(right)
+    right_unit = _normalize_quaternions_unchecked(right)
     dots = np.abs(np.sum(left_unit * right_unit, axis=-1))
     return np.degrees(2.0 * np.arccos(np.clip(dots, 0.0, 1.0)))
 
@@ -353,7 +370,7 @@ def _interpolate_rotation_track(
 ) -> np.ndarray:
     if len(indices) == 1:
         return np.broadcast_to(values[0], (frame_count, 4)).copy()
-    unit_values = normalize_quaternions(values)
+    unit_values = _normalize_quaternions_unchecked(values)
     frames = np.arange(frame_count, dtype=np.int64)
     segments = np.searchsorted(indices, frames, side="right") - 1
     segments = np.clip(segments, 0, len(indices) - 2)

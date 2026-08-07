@@ -13,6 +13,7 @@ from .format import (
     CodecSettings,
     _interpolate_rotation_track,
     _interpolate_scalar_track,
+    _normalize_quaternions_unchecked,
     _quaternion_angular_error_unit_left,
     _rotation_joint_indices,
     _rotation_key_indices_multi_unit,
@@ -21,7 +22,7 @@ from .format import (
     quantize_rotation_samples,
     quantize_translation_samples,
 )
-from .math3d import normalize_quaternions, quaternion_angular_error_degrees
+from .math3d import quaternion_angular_error_degrees
 from .metrics import roundtrip_metrics
 from .model import MotionClip, Skeleton
 from .quality import QualityThresholds
@@ -195,7 +196,7 @@ def _plan_rotation_track(
     candidate_bits: Sequence[int],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     options: list[tuple[int, float, int, int, float, np.ndarray, np.ndarray]] = []
-    unit_track = normalize_quaternions(track)
+    unit_track = _normalize_quaternions_unchecked(track)
     quantized_tracks = {
         int(bits): quantize_rotation_samples(track, int(bits))
         for bits in candidate_bits

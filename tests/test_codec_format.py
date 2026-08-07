@@ -9,6 +9,7 @@ from skac_codec.format import (
     SkacFormatError,
     _decode_rotations,
     _encode_rotations,
+    _normalize_quaternions_unchecked,
     _quaternion_slerp_unit,
     _rotation_key_indices,
     _rotation_key_indices_multi,
@@ -109,6 +110,14 @@ class CodecFormatTests(unittest.TestCase):
             amounts,
         )
         np.testing.assert_array_equal(actual, expected)
+
+    def test_unchecked_normalization_matches_validated_path(self) -> None:
+        rng = np.random.default_rng(20260810)
+        values = rng.normal(size=(257, 4))
+        np.testing.assert_array_equal(
+            _normalize_quaternions_unchecked(values),
+            normalize_quaternions(values),
+        )
 
     def test_high_quality_round_trip_is_small_and_deterministic(self) -> None:
         source = sample_clip()

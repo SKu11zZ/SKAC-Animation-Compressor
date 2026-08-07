@@ -182,7 +182,7 @@ def build_report(
             "baseline": "pre_vectorized_planner",
             "optimized": (
                 "vectorized_quantization_shared_threshold_tree_"
-                "candidate_cache_and_normalization_reuse"
+                "candidate_cache_and_validated_boundary_normalization_reuse"
             ),
             "timing_statistic": "median",
             "timing_repeats": repeats,
@@ -227,8 +227,8 @@ def _svg(report: dict[str, Any]) -> str:
 <style>.bg{{fill:#0e1012}}.card{{fill:#171a1e;stroke:#30343a}}.title{{fill:#f3f4f6;font:700 34px Arial,sans-serif}}.sub{{fill:#9ba1aa;font:15px Arial,sans-serif}}.label{{fill:#a4aab3;font:700 12px Arial,sans-serif;letter-spacing:.5px}}.value{{fill:#f6f7f8;font:700 34px Arial,sans-serif}}.axis{{fill:#abb1ba;font:13px Arial,sans-serif}}.ok{{fill:#57f287;font:700 12px Arial,sans-serif}}.note{{fill:#858c96;font:12px Arial,sans-serif}}.raw{{fill:#e9eaec}}.accent{{fill:#7c5cff}}</style>
 <rect width="1280" height="720" class="bg"/><rect width="12" height="720" class="accent"/>
 <text x="54" y="64" class="title">SKAC v2.1 Planner Optimization / 规划器优化</text>
-<text x="54" y="98" class="sub">Shared error tree + candidate cache + normalized quaternion reuse</text>
-<text x="54" y="124" class="sub">共享误差树 + 候选缓存 + 四元数归一化复用 · high quality · median of repeated runs</text>
+<text x="54" y="98" class="sub">Shared error tree + candidate cache + normalize once at validated boundaries</text>
+<text x="54" y="124" class="sub">共享误差树 + 候选缓存 + 入口校验后复用归一化结果 · high quality · repeated-run median</text>
 {''.join(cards)}
 <text x="54" y="406" class="label">PLANNER TIME / 规划耗时　　WHITE = BASELINE　PURPLE = OPTIMIZED</text>
 {''.join(bars)}
