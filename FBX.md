@@ -58,10 +58,18 @@ factory startup, no shell, an explicit timeout, and a temporary JSON report.
 
 ## Current validation status
 
-The adapter command construction, temporary-output behavior, failure handling, and
-Blender bridge syntax are covered by unit tests. This development machine has no
-Blender or FBX SDK, so a real FBX round trip has not yet passed here. Until that happens,
-the backend is experimental and must not be described as production-validated.
+The adapter command construction, UTF-8 process handling, temporary-output behavior,
+failure handling, and Blender bridge syntax are covered by unit tests. Blender 4.5.12
+LTS successfully extracted all 38 files in the checked public local run: 23 Mixamo and
+15 Manny animation FBX files. One neutral sample per family also completed
+`FBX -> BVH -> .skac -> BVH -> FBX`, retained its armature animation and keyframes, and
+reported no missing external dependency.
+
+Those 38 inputs are animation-only files with no Mesh or material. The run therefore
+does not validate skinned-Mesh deformation, material/texture preservation, multiple
+takes, constraints, or layered FBX animation. The backend remains experimental rather
+than production-validated. The portable Blender binary, source FBX files, extracted
+BVH cache, and round-trip outputs remain local and are not part of this repository.
 
 FBX can express bind rotations, pivots, animation layers, multiple takes, constraints,
 and scaling that BVH cannot. The current bridge deliberately bakes evaluated pose

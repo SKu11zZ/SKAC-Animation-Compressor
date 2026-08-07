@@ -4,7 +4,17 @@ import unittest
 
 import numpy as np
 
-from skac_codec.format import CodecSettings, SkacFormatError, decode_bytes, encode_bytes
+from skac_codec.format import (
+    CodecSettings,
+    SkacFormatError,
+    _decode_rotations,
+    _encode_rotations,
+    _rotation_key_indices,
+    _rotation_key_indices_multi,
+    decode_bytes,
+    encode_bytes,
+    quantize_rotation_samples,
+)
 from skac_codec.math3d import euler_order_to_quaternion
 from skac_codec.metrics import roundtrip_metrics
 from skac_codec.model import MotionClip, Skeleton
@@ -42,6 +52,26 @@ def sample_clip(frame_count: int = 120) -> MotionClip:
 
 
 class CodecFormatTests(unittest.TestCase):
+    def test_vectorized_rotation_quantization_matches_packed_bitstream(self) -> None:
+        rng = np.random.default_rng(20260807)
+        values = rng.normal(size=(257, 4))
+        for bits in (8, 10, 12, 14, 16, 18, 20):
+            expected = _decode_rotations(
+                _encode_rotations(values, bits), len(values), bits
+            )
+            np.testing.assert_array_equal(
+                quantize_rotation_samples(values, bits), expected
+            )
+
+    def test_multi_threshold_rotation_keys_match_independent_runs(self) -> None:
+        clip = sample_clip(37)
+        track = clip.local_rotations[:, 2]
+        thresholds = (0.5, 0.2, 0.05)
+        expected = tuple(_rotation_key_indices(track, item) for item in thresholds)
+        actual = _rotation_key_indices_multi(track, thresholds)
+        for left, right in zip(actual, expected, strict=True):
+            np.testing.assert_array_equal(left, right)
+
     def test_high_quality_round_trip_is_small_and_deterministic(self) -> None:
         source = sample_clip()
         settings = CodecSettings.preset("high")

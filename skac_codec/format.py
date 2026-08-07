@@ -210,16 +210,25 @@ def _rotation_joint_indices(skeleton: Skeleton) -> tuple[int, ...]:
 
 
 def _rotation_key_indices(track: np.ndarray, threshold_degrees: float) -> np.ndarray:
+    return _rotation_key_indices_multi(track, (threshold_degrees,))[0]
+
+
+def _rotation_key_indices_multi(
+    track: np.ndarray, thresholds_degrees: Sequence[float]
+) -> tuple[np.ndarray, ...]:
+    """Compute Douglas-Peucker rotation keys for several thresholds in one tree."""
+    thresholds = tuple(float(item) for item in thresholds_degrees)
+    if not thresholds or any(item < 0.0 or not np.isfinite(item) for item in thresholds):
+        raise ValueError("rotation thresholds must be finite and non-negative")
     frame_count = track.shape[0]
     if frame_count == 1:
-        return np.asarray([0], dtype=np.int64)
+        return tuple(np.asarray([0], dtype=np.int64) for _ in thresholds)
     constant_error = quaternion_angular_error_degrees(
         track, np.broadcast_to(track[0], track.shape)
     )
-    if float(np.max(constant_error)) <= threshold_degrees:
-        return np.asarray([0], dtype=np.int64)
-
-    kept = {0, frame_count - 1}
+    constant_max = float(np.max(constant_error))
+    minimum = min(thresholds)
+    decisions: dict[tuple[int, int], tuple[float, int]] = {}
     pending = [(0, frame_count - 1)]
     while pending:
         start, end = pending.pop()
@@ -230,12 +239,31 @@ def _rotation_key_indices(track: np.ndarray, threshold_degrees: float) -> np.nda
         predicted = quaternion_slerp(track[start], track[end], amount)
         errors = quaternion_angular_error_degrees(track[frames], predicted)
         relative = int(np.argmax(errors))
-        if float(errors[relative]) > threshold_degrees:
+        maximum_error = float(errors[relative])
+        if maximum_error > minimum:
             selected = int(frames[relative])
+            decisions[(start, end)] = (maximum_error, selected)
+            pending.append((start, selected))
+            pending.append((selected, end))
+
+    results: list[np.ndarray] = []
+    for threshold in thresholds:
+        if constant_max <= threshold:
+            results.append(np.asarray([0], dtype=np.int64))
+            continue
+        kept = {0, frame_count - 1}
+        pending = [(0, frame_count - 1)]
+        while pending:
+            start, end = pending.pop()
+            decision = decisions.get((start, end))
+            if decision is None or decision[0] <= threshold:
+                continue
+            selected = decision[1]
             kept.add(selected)
             pending.append((start, selected))
             pending.append((selected, end))
-    return np.asarray(sorted(kept), dtype=np.int64)
+        results.append(np.asarray(sorted(kept), dtype=np.int64))
+    return tuple(results)
 
 
 def _scalar_key_indices(track: np.ndarray, threshold: float) -> np.ndarray:
@@ -340,8 +368,32 @@ def quantize_rotation_samples(quaternions: np.ndarray, bits: int) -> np.ndarray:
         raise ValueError("quaternions must have a non-empty final dimension of four")
     if not 8 <= bits <= 20:
         raise ValueError("rotation bits must be between 8 and 20")
-    flat = values.reshape(-1, 4)
-    decoded = _decode_rotations(_encode_rotations(flat, bits), len(flat), bits)
+    flat = values.reshape(-1, 4).copy()
+    lengths = np.linalg.norm(flat, axis=1, keepdims=True)
+    if np.any(lengths <= 1e-12) or not np.isfinite(lengths).all():
+        raise ValueError("quaternions must be finite and non-zero")
+    flat /= lengths
+    omitted = np.argmax(np.abs(flat), axis=1)
+    signs = flat[np.arange(flat.shape[0]), omitted] < 0.0
+    flat[signs] *= -1.0
+
+    maximum = (1 << bits) - 1
+    decoded = np.empty_like(flat)
+    squared = np.zeros(flat.shape[0], dtype=np.float64)
+    for component in range(4):
+        selected = omitted != component
+        normalized = (flat[selected, component] + _SMALLEST_THREE_LIMIT) / (
+            2.0 * _SMALLEST_THREE_LIMIT
+        )
+        quantized = np.rint(np.clip(normalized, 0.0, 1.0) * maximum)
+        restored = (
+            quantized / maximum * (2.0 * _SMALLEST_THREE_LIMIT)
+            - _SMALLEST_THREE_LIMIT
+        )
+        decoded[selected, component] = restored
+        squared[selected] += restored * restored
+    decoded[np.arange(len(flat)), omitted] = np.sqrt(np.maximum(0.0, 1.0 - squared))
+    decoded /= np.linalg.norm(decoded, axis=1, keepdims=True)
     return decoded.reshape(values.shape)
 
 

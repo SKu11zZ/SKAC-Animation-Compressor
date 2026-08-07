@@ -25,6 +25,8 @@ class FbxAdapterTests(unittest.TestCase):
     def test_bridge_uses_argument_array_and_no_shell(self) -> None:
         def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
             self.assertIs(kwargs["shell"], False)
+            self.assertEqual(kwargs["encoding"], "utf-8")
+            self.assertEqual(kwargs["errors"], "replace")
             self.assertIn("--factory-startup", command)
             report_path = Path(command[command.index("--report") + 1])
             report_path.write_text(

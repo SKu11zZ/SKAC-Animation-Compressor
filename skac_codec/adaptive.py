@@ -14,7 +14,7 @@ from .format import (
     _interpolate_rotation_track,
     _interpolate_scalar_track,
     _rotation_joint_indices,
-    _rotation_key_indices,
+    _rotation_key_indices_multi,
     _scalar_key_indices,
     encode_bytes,
     quantize_rotation_samples,
@@ -194,13 +194,16 @@ def _plan_rotation_track(
     candidate_bits: Sequence[int],
 ) -> tuple[np.ndarray, dict[str, Any]]:
     options: list[tuple[int, float, int, int, float, np.ndarray, np.ndarray]] = []
-    for threshold_scale in (0.65, 0.45, 0.25, 0.0):
+    nonzero_scales = (0.65, 0.45, 0.25)
+    nonzero_thresholds = tuple(
+        error_budget_degrees * scale for scale in nonzero_scales
+    )
+    nonzero_indices = _rotation_key_indices_multi(track, nonzero_thresholds)
+    index_options = (*nonzero_indices, np.arange(track.shape[0], dtype=np.int64))
+    for threshold_scale, indices in zip(
+        (*nonzero_scales, 0.0), index_options, strict=True
+    ):
         threshold = error_budget_degrees * threshold_scale
-        indices = (
-            np.arange(track.shape[0], dtype=np.int64)
-            if threshold_scale == 0.0
-            else _rotation_key_indices(track, threshold)
-        )
         for bits in candidate_bits:
             values = quantize_rotation_samples(track[indices], int(bits))
             reconstructed = _interpolate_rotation_track(

@@ -1,0 +1,44 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13"
+  },
+  "passed": true,
+  "samples": [
+    {
+      "baseline_seconds": 8.263287400011905,
+      "frame_count": 203,
+      "id": "smpl_0042",
+      "optimized_seconds": 4.75070780000533,
+      "plan_identical": true,
+      "plan_sha256": "e4e59207a07edfe59de73ba2089b063ce16c04049a0529a8c22c46fe37211c1d",
+      "quality_passed": true,
+      "rotation_budget_attempts": 1,
+      "sample": "shortest",
+      "segment_count": 8,
+      "speedup": 1.7393802666631346
+    },
+    {
+      "baseline_seconds": 20.09528290000162,
+      "frame_count": 546,
+      "id": "smpl_0138",
+      "optimized_seconds": 11.3503571000183,
+      "plan_identical": true,
+      "plan_sha256": "54d6aa887d93d4a5527741d1b74b465bfa3819cfbe7d257510214ccf9cda5c22",
+      "quality_passed": true,
+      "rotation_budget_attempts": 1,
+      "sample": "median",
+      "segment_count": 26,
+      "speedup": 1.7704538036049298
+    }
+  ],
+  "schema": "skac.v2_planner_optimization",
+  "schema_version": "1.0.0",
+  "scope": {
+    "baseline": "pre_vectorized_planner",
+    "optimized": "vectorized_quantization_and_shared_threshold_tree",
+    "original_names_in_report": false,
+    "quality": "high",
+    "source_paths_in_report": false
+  }
+}

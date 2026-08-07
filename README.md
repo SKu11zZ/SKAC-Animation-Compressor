@@ -115,6 +115,49 @@ python tools/run_smpl_codec_benchmark.py --data-root LOCAL_SMPL_CACHE \
   --visual reports/codec_v1_smplx_public_252.svg --workers 4 --max-frames 512
 ```
 
+### Public Mixamo + Manny FBX run
+
+![SKAC v1 public FBX Codec benchmark](reports/codec_v1_fbx_public_38.svg)
+
+The Blender 4.5 LTS backend successfully extracted and encoded all 38 neutral public
+FBX files: 23 Mixamo motions and 15 Manny motions. None exceeded the 512-frame cap, so
+the run evaluates every one of the 2,402 source frames, representing 80.43 seconds of
+animation. The high preset stores 3.62 MiB of Float32 channels in 1.51 MiB of `.skac`
+data, a 2.39× ratio; summed Python whole-clip decode is 29.7× realtime.
+
+The quality result is intentionally not hidden. Maximum local rotation error is
+0.0506 degrees and decode speed passes their frozen limits, but maximum global-position
+error is 0.001594 skeleton heights, above the 0.001 high-quality limit. The report's
+top-level `passed` field is therefore false. One neutral sample per family also passed
+a complete `FBX → BVH → .skac → BVH → FBX` smoke test. These source files contain no
+Mesh or material, so this run validates animation and bone preservation, not skinned-
+Mesh or material fidelity. See
+[`codec_v1_fbx_public_38.json`](reports/codec_v1_fbx_public_38.json) for every anonymous
+sample and check.
+
+```text
+python tools/run_fbx_codec_benchmark.py --data-root LOCAL_PUBLIC_CACHE \
+  --bvh-cache LOCAL_BVH_CACHE --blender BLENDER \
+  --output reports/codec_v1_fbx_public_38.json \
+  --visual reports/codec_v1_fbx_public_38.svg --max-frames 512
+```
+
+### SKAC v2.1 planner optimization
+
+![SKAC v2.1 planner optimization](reports/v2_planner_optimization_smplx.svg)
+
+The v2.1 planner no longer simulates every candidate bit width by writing and reading a
+packed bitstream. Smallest-three quantization is now vectorized, and the three keyframe
+reduction thresholds share one error tree. A detached pre-optimization commit and the
+new planner produced identical plan SHA-256 values on both checked public SMPL-X
+streams. The 203-frame sample falls from 8.26 to 4.75 seconds (1.74× faster); the
+546-frame sample falls from 20.10 to 11.35 seconds (1.77× faster).
+
+This improves offline encode planning without changing runtime decode or the resulting
+plan. It does not make v2.1 cheap yet: a separate 6,361-frame observation still takes
+133.5 seconds. The checked comparison is in
+[`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json).
+
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
 its official source; this repo provides the protocol, runner, metrics, and a small
@@ -231,7 +274,7 @@ distribution, end-effector IK, and robust contact locking remain later milestone
 experimental Blender FBX bridge is included, but it has not completed a real FBX round
 trip on this development machine; see `FBX.md` before using it.
 
-The `reports` directory contains ten aggregate records:
+The `reports` directory contains twelve aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - a one-file, two-target public retargeting smoke test;
@@ -243,6 +286,8 @@ The `reports` directory contains ten aggregate records:
 - a native same/different-character sampling benchmark with a matching SVG summary;
 - an eight-character, 160-clip Codec compression and decode showcase.
 - a 252-motion public SMPL-X parameter-stream compression and decode run.
+- a 38-motion public Mixamo/Manny FBX extraction and Codec run.
+- a detached-baseline v2.1 planner optimization comparison.
 
 The reports keep the scoring definitions beside the numbers. Raw motions and generated
 predictions are not included.
@@ -340,6 +385,36 @@ Codec 现在可以直接读取 AMASS 风格的数值 SMPL-X NPZ 动作，不需�
 仓库不携带受许可约束的人体模型，所以全局位置误差只标为标准化拓扑代理值，不能当作人体模型
 或 Mesh 精度。匿名逐动作结果见
 [`codec_v1_smplx_public_252.json`](reports/codec_v1_smplx_public_252.json)，命令与英文部分相同。
+
+### 公开 Mixamo + Manny FBX 测试
+
+![SKAC v1 公开 FBX Codec 测试](reports/codec_v1_fbx_public_38.svg)
+
+Blender 4.5 LTS 后端成功提取并编码全部 38 个中性命名的公开 FBX：23 段 Mixamo 和
+15 段 Manny。没有动画超过 512 帧，所以 2,402 个源帧全部进入测试，总时长 80.43 秒。
+高质量档把 3.62 MiB Float32 通道压到 1.51 MiB，压缩比 2.39 倍；Python 整段解码
+合计达到 29.7 倍实时。
+
+质量结果不会藏起来：最大局部旋转误差 0.0506 度、解码速度都通过冻结门槛，但最大全局
+位置误差为骨架高度的 0.001594，高于 high 档 0.001 门槛，因此报告顶层 `passed` 为
+false。每个动画族还各取一个中性样本，完整跑通 `FBX → BVH → .skac → BVH → FBX`。
+不过这些源文件本身没有 Mesh 和材质，所以这次验证的是骨架动画回写，不代表蒙皮 Mesh 或
+材质保真已经通过。完整匿名结果见
+[`codec_v1_fbx_public_38.json`](reports/codec_v1_fbx_public_38.json)。
+
+### SKAC v2.1 规划器优化
+
+![SKAC v2.1 规划器优化](reports/v2_planner_optimization_smplx.svg)
+
+v2.1 规划器不再为了测试每个候选位宽，反复把旋转写成位流再读回来。smallest-three 量化
+现在改为向量化计算，三个关键帧精简阈值也共用同一棵误差树。用优化前的 detached 提交
+做对照，两段公开 SMPL-X 动作在优化前后得到的规划 SHA‑256 完全相同，质量门槛也没有
+变化。203 帧样本从 8.26 秒降到 4.75 秒，提升 1.74 倍；546 帧样本从 20.10 秒降到
+11.35 秒，提升 1.77 倍。
+
+这次只降低离线编码规划成本，不改变运行时解码和最终规划结果。v2.1 还没有便宜到可以忽略：
+单独测得的 6,361 帧长动作仍需要 133.5 秒。可复现对照见
+[`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json)。
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的
