@@ -8,8 +8,9 @@
 
 `skac-agent` is the machine-facing entry point. It uses a versioned JSON contract,
 writes only JSON to standard output, returns stable exit codes, and never asks an
-interactive question. It currently exposes the tested BVH workflow; the experimental
-FBX bridge is intentionally outside protocol v1.
+interactive question. It exposes the tested BVH workflow plus model-free numeric
+SMPL-X NPZ input for encoding; the experimental FBX bridge is intentionally outside
+protocol v1.
 
 Install the package, then discover the contract:
 
@@ -74,8 +75,11 @@ line; one bad line does not stop later jobs. JSONL responses are also one line e
 
 Protocol v1 operations:
 
-- `encode`: BVH to `.skac`; `format_version` selects v1 or v2, and v2 optionally accepts
-  `min_segment_frames` and `max_segment_frames`;
+- `encode`: BVH or numeric SMPL-X NPZ to `.skac`; `format_version` selects v1 or v2,
+  and v2 optionally accepts `min_segment_frames` and `max_segment_frames`. NPZ rotation
+  and root-translation errors are exact-source metrics; global position uses a
+  normalized topology proxy unless the caller supplies a licensed body model outside
+  this repository;
 - `inspect`: read `.skac` metadata without creating an asset;
 - `pack_create`: build a deterministic `.skacpack` from a JSON object of entry IDs and
   workspace-relative `.skac` paths;

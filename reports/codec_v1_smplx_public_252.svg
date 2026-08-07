@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<style>
+  .bg{fill:#0e1012} .card{fill:#171a1e;stroke:#30343a} .title{fill:#f3f4f6;font:700 34px Arial,sans-serif}
+  .sub{fill:#979da7;font:15px Arial,sans-serif} .label{fill:#9da3ad;font:700 12px Arial,sans-serif;letter-spacing:.5px}
+  .value{fill:#f6f7f8;font:700 28px Arial,sans-serif} .axis{fill:#a9afb8;font:13px Arial,sans-serif}
+  .note{fill:#858c96;font:12px Arial,sans-serif} .raw{fill:#e9eaec} .accent{fill:#25e6c8}
+</style>
+<rect width="1280" height="720" class="bg"/>
+<rect x="0" y="0" width="12" height="720" class="accent"/>
+<text x="54" y="65" class="title">SKAC v1 · SMPL-X Parameter Stream Benchmark</text>
+<text x="54" y="96" class="sub">252 public motions · 109,529 evaluated / 192,553 source frames · 120 FPS</text>
+<text x="54" y="123" class="sub">Rotation and root translation are exact-source metrics; global position is a canonical-topology proxy.</text>
+<text x="54" y="145" class="sub">旋转与根位移按原始参数计算；全局位置仅为标准化拓扑代理，不代表人体模型或 Mesh 误差。</text>
+<rect x="54" y="176" width="370" height="104" rx="12" class="card"/><text x="76" y="207" class="label">MOTIONS / 动画</text><text x="76" y="251" class="value">252</text><rect x="452" y="176" width="370" height="104" rx="12" class="card"/><text x="474" y="207" class="label">FRAMES / 帧</text><text x="474" y="251" class="value">109,529</text><rect x="850" y="176" width="370" height="104" rx="12" class="card"/><text x="872" y="207" class="label">RAW CHANNELS / 原始通道</text><text x="872" y="251" class="value">70.19 MiB</text><rect x="54" y="308" width="370" height="104" rx="12" class="card"/><text x="76" y="339" class="label">SKAC FILES / 压缩后</text><text x="76" y="383" class="value">13.15 MiB</text><rect x="452" y="308" width="370" height="104" rx="12" class="card"/><text x="474" y="339" class="label">COMPRESSION / 压缩比</text><text x="474" y="383" class="value">5.34×</text><rect x="850" y="308" width="370" height="104" rx="12" class="card"/><text x="872" y="339" class="label">MAX ROTATION ERROR / 最大旋转误差</text><text x="872" y="383" class="value">0.0516°</text>
+<text x="54" y="478" class="label">TOTAL STORAGE / 总存储量</text>
+<rect x="190" y="508" width="1030" height="28" rx="6" class="raw"/>
+<rect x="190" y="560" width="192.9" height="28" rx="6" class="accent"/>
+<text x="54" y="528" class="axis">Float32</text><text x="54" y="580" class="axis">SKAC v1</text>
+<text x="1208" y="528" text-anchor="end" class="axis">70.19 MiB</text>
+<text x="392.9" y="580" class="axis">13.15 MiB</text>
+<text x="54" y="642" class="note">Summed clip encode: 746.46 s (1.22× realtime) · summed Python decode: 21.03 s (43.3× realtime)</text>
+<text x="54" y="668" class="note">全片编码耗时合计：746.46 秒 · Python 整段解码耗时合计：21.03 秒。结果按匿名动作 ID 汇总。</text>
+<text x="54" y="694" class="note">Environment: Python 3.12.13 · Windows-11-10.0.26200-SP0</text>
+</svg>

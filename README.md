@@ -91,6 +91,30 @@ python tools/run_codec_v2_comparison.py --data-root PUBLIC_MIXAMO_ROOT \
   --visual reports/codec_v1_v2_1_8x20_public.svg --workers 8
 ```
 
+### Public SMPL-X parameter-stream run
+
+![SKAC v1 public SMPL-X parameter-stream benchmark](reports/codec_v1_smplx_public_252.svg)
+
+The Codec can now read numeric AMASS-style SMPL-X NPZ motion directly, without loading
+or redistributing a body model. The expanded run covers all 252 valid motions in the
+supplied public set. It evaluates a deterministic center window of at most 512 frames
+per motion: 109,529 evaluated frames from 192,553 source frames at 120 FPS.
+
+The high preset stores 70.19 MiB of Float32 animation channels in 13.15 MiB, a 5.34×
+ratio. Maximum local rotation error is 0.0516 degrees, and summed Python whole-clip
+decode is 43.3× realtime. Rotation and root translation use the source parameters;
+because no licensed body model is shipped, global-position error is labelled only as
+a normalized-topology proxy and is not a body-model or Mesh accuracy claim. Full
+anonymous per-motion results are in
+[`codec_v1_smplx_public_252.json`](reports/codec_v1_smplx_public_252.json).
+
+```text
+python -m skac_codec encode motion.npz -o motion.skac --quality high
+python tools/run_smpl_codec_benchmark.py --data-root LOCAL_SMPL_CACHE \
+  --output reports/codec_v1_smplx_public_252.json \
+  --visual reports/codec_v1_smplx_public_252.svg --workers 4 --max-frames 512
+```
+
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
 its official source; this repo provides the protocol, runner, metrics, and a small
@@ -98,7 +122,7 @@ public baseline.
 
 ### What is here
 
-- `skac_codec`: BVH I/O, the versioned `.skac` Codec, `.skacpack`, and CLI;
+- `skac_codec`: BVH/SMPL-X NPZ input, the versioned `.skac` Codec, `.skacpack`, and CLI;
 - `skac-agent`: a versioned JSON/JSONL interface for other Agents and automation;
 - `native` and `integrations`: a C++ decoder plus Unity/Unreal Runtime Beta adapters;
 - `QUALITY_GATES.md`: frozen reconstruction and playback-performance limits;
@@ -127,6 +151,7 @@ Python 3.10+ and NumPy are enough for the benchmark itself.
 ```text
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec encode motion.npz -o motion.skac --quality high
 python -m skac_codec encode input.bvh -o motion-v2.skac --quality high --format-version 2
 python -m skac_codec inspect motion.skac
 python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg
@@ -206,7 +231,7 @@ distribution, end-effector IK, and robust contact locking remain later milestone
 experimental Blender FBX bridge is included, but it has not completed a real FBX round
 trip on this development machine; see `FBX.md` before using it.
 
-The `reports` directory contains nine aggregate records:
+The `reports` directory contains ten aggregate records:
 
 - a Codec 1.0 round-trip smoke test on one public SAN BVH;
 - a one-file, two-target public retargeting smoke test;
@@ -217,6 +242,7 @@ The `reports` directory contains nine aggregate records:
 - a different-character Profile 2.0 playback gate with a matching SVG summary;
 - a native same/different-character sampling benchmark with a matching SVG summary;
 - an eight-character, 160-clip Codec compression and decode showcase.
+- a 252-motion public SMPL-X parameter-stream compression and decode run.
 
 The reports keep the scoring definitions beside the numbers. Raw motions and generated
 predictions are not included.
@@ -301,13 +327,27 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 达到 0.002674，因此该项失败。完整逐动画对照见
 [`codec_v1_v2_1_8x20_public.json`](reports/codec_v1_v2_1_8x20_public.json)。复现命令与英文部分相同。
 
+### 公开 SMPL-X 参数流测试
+
+![SKAC v1 公开 SMPL-X 参数流测试](reports/codec_v1_smplx_public_252.svg)
+
+Codec 现在可以直接读取 AMASS 风格的数值 SMPL-X NPZ 动作，不需要加载或重新分发人体模型。
+这次扩展测试覆盖公开数据中的全部 252 段有效动作；每段确定性截取最多 512 帧的中心窗口，
+从 192,553 个源帧中实际评测 109,529 帧，帧率为 120 FPS。
+
+高质量档把 70.19 MiB Float32 动画通道压到 13.15 MiB，压缩比为 5.34 倍；最大局部
+旋转误差为 0.0516 度，Python 整段解码合计达到 43.3 倍实时。旋转与根位移直接对照源参数；
+仓库不携带受许可约束的人体模型，所以全局位置误差只标为标准化拓扑代理值，不能当作人体模型
+或 Mesh 精度。匿名逐动作结果见
+[`codec_v1_smplx_public_252.json`](reports/codec_v1_smplx_public_252.json)，命令与英文部分相同。
+
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的
 公开基线。
 
 ### 这里现在有什么
 
-- `skac_codec`：BVH 读写、版本化 `.skac` 容器、编码器、解码器和命令行工具；
+- `skac_codec`：BVH/SMPL-X NPZ 输入、版本化 `.skac` 容器、编码器、解码器和命令行工具；
 - `skac-agent`：给其他 Agent 和自动化程序调用的版本化 JSON/JSONL 接口；
 - `native` 和 `integrations`：C++ 解码核心，以及 Unity/Unreal Runtime Beta 适配层；
 - `QUALITY_GATES.md`：固定的还原质量和播放性能门槛；
@@ -334,6 +374,7 @@ python tools/run_codec_showcase.py --data-root PUBLIC_MIXAMO_ROOT \
 ```text
 python -m unittest discover -s tests -v
 python -m skac_codec encode input.bvh -o motion.skac --quality high
+python -m skac_codec encode motion.npz -o motion.skac --quality high
 python -m skac_codec encode input.bvh -o motion-v2.skac --quality high --format-version 2
 python -m skac_codec inspect motion.skac
 python -m skac_codec adaptive-plan input.bvh -o reports/adaptive.json --visual reports/adaptive.svg

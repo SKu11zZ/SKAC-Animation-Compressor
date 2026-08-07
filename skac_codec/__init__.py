@@ -48,6 +48,7 @@ from .retarget import (
     save_retarget_profile,
 )
 from .runtime import runtime_skeleton_bytes, runtime_skeleton_dict, save_runtime_skeleton
+from .smpl import read_smpl_npz, smplx55_proxy_skeleton
 
 __all__ = [
     "CodecSettings",
@@ -81,6 +82,7 @@ __all__ = [
     "read_bvh",
     "read_skac",
     "read_pack",
+    "read_smpl_npz",
     "load_retarget_profile",
     "retarget_motion",
     "run_quality_gate",
@@ -89,6 +91,7 @@ __all__ = [
     "runtime_skeleton_bytes",
     "runtime_skeleton_dict",
     "save_runtime_skeleton",
+    "smplx55_proxy_skeleton",
     "validate_fbx",
     "write_adaptive_plan_json",
     "write_adaptive_plan_svg",

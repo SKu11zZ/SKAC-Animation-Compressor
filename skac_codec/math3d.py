@@ -64,6 +64,28 @@ def axis_angle_quaternion(axis: str, angle_radians: ArrayLike) -> FloatArray:
     return result
 
 
+def rotation_vector_to_quaternion(value: ArrayLike) -> FloatArray:
+    """Convert Rodrigues rotation vectors to scalar-first unit quaternions."""
+    vectors = np.asarray(value, dtype=np.float64)
+    if vectors.shape[-1] != 3:
+        raise ValueError("rotation vectors require a final dimension of three")
+    if not np.isfinite(vectors).all():
+        raise ValueError("rotation vectors must contain finite values")
+
+    angles = np.linalg.norm(vectors, axis=-1)
+    half = 0.5 * angles
+    scale = np.empty_like(angles)
+    small = angles < 1e-8
+    squared = angles[small] * angles[small]
+    scale[small] = 0.5 - squared / 48.0
+    scale[~small] = np.sin(half[~small]) / angles[~small]
+
+    result = np.empty(vectors.shape[:-1] + (4,), dtype=np.float64)
+    result[..., 0] = np.cos(half)
+    result[..., 1:] = vectors * scale[..., None]
+    return normalize_quaternions(result)
+
+
 def euler_order_to_quaternion(order: str, angles_radians: ArrayLike) -> FloatArray:
     order = order.upper()
     if order not in _STATIC_AXES:

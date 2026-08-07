@@ -32,6 +32,7 @@ from .retarget import (
     save_retarget_profile,
 )
 from .runtime import save_runtime_skeleton
+from .smpl import read_smpl_npz
 
 
 PROTOCOL = "skac.agent.v1"
@@ -260,7 +261,19 @@ def _encode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
     )
     source = _relative_path(workspace, arguments["input"], "arguments.input", input_file=True)
     output = _output_path(workspace, arguments)
-    clip = read_bvh(source)
+    suffix = source.suffix.casefold()
+    if suffix == ".bvh":
+        clip = read_bvh(source)
+        input_format = "bvh"
+        metric_scope = "source_skeleton"
+    elif suffix == ".npz":
+        clip = read_smpl_npz(source)
+        input_format = "smplx_parameter_stream"
+        metric_scope = "rotation_and_root_translation_exact_global_position_proxy"
+    else:
+        raise AgentRequestError(
+            "arguments.input must be BVH or a numeric SMPL-X NPZ motion"
+        )
     settings = _codec_settings(arguments)
     format_version = int(
         _number(arguments.get("format_version", 1), "arguments.format_version", int)
@@ -304,6 +317,8 @@ def _encode(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             "bytes": len(encoded),
         },
         "quality": settings.quality_name,
+        "input_format": input_format,
+        "metric_scope": metric_scope,
         "format_version": format_version,
         "rotation_bits": settings.rotation_bits,
         "translation_bits": settings.translation_bits,

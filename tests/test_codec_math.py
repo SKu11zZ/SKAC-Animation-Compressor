@@ -11,6 +11,7 @@ from skac_codec.math3d import (
     quaternion_to_matrix,
     quaternion_to_euler_order,
     quaternion_slerp,
+    rotation_vector_to_quaternion,
 )
 
 
@@ -31,6 +32,14 @@ class CodecMathTests(unittest.TestCase):
         expected = euler_order_to_quaternion("XYZ", np.asarray([0.0, 0.0, np.pi / 2.0]))
         self.assertLess(
             float(quaternion_angular_error_degrees(middle, expected)), 1e-5
+        )
+
+    def test_rotation_vector_conversion(self) -> None:
+        vectors = np.asarray([[0.0, 0.0, 0.0], [0.0, 0.0, np.pi]])
+        actual = rotation_vector_to_quaternion(vectors)
+        expected = np.asarray([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+        self.assertLess(
+            float(np.max(quaternion_angular_error_degrees(actual, expected))), 1e-5
         )
 
     def test_all_bvh_euler_orders_round_trip(self) -> None:

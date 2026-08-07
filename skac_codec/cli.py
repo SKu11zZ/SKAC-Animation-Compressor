@@ -30,6 +30,7 @@ from .retarget import (
     save_retarget_profile,
 )
 from .runtime import save_runtime_skeleton
+from .smpl import read_smpl_npz
 
 
 def _settings(args: argparse.Namespace) -> CodecSettings:
@@ -63,7 +64,17 @@ def _write_json(value: object) -> None:
 
 
 def _encode(args: argparse.Namespace) -> int:
-    clip = read_bvh(args.input)
+    suffix = args.input.suffix.casefold()
+    if suffix == ".bvh":
+        clip = read_bvh(args.input)
+        input_format = "bvh"
+        metric_scope = "source_skeleton"
+    elif suffix == ".npz":
+        clip = read_smpl_npz(args.input)
+        input_format = "smplx_parameter_stream"
+        metric_scope = "rotation_and_root_translation_exact_global_position_proxy"
+    else:
+        raise ValueError("encode input must be BVH or a numeric SMPL-X NPZ motion")
     settings = _settings(args)
     if args.format_version == 2:
         encoded = encode_v2_bytes(
@@ -82,6 +93,8 @@ def _encode(args: argparse.Namespace) -> int:
     _write_json(
         {
             "command": "encode",
+            "input_format": input_format,
+            "metric_scope": metric_scope,
             "format_version": args.format_version,
             "quality": settings.quality_name,
             "rotation_bits": settings.rotation_bits,
@@ -377,7 +390,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    encode_parser = subparsers.add_parser("encode", help="encode a BVH animation")
+    encode_parser = subparsers.add_parser(
+        "encode", help="encode a BVH or numeric SMPL-X NPZ animation"
+    )
     encode_parser.add_argument("input", type=Path)
     encode_parser.add_argument("--output", "-o", type=Path, required=True)
     encode_parser.add_argument("--quality", choices=("low", "medium", "high"), default="high")

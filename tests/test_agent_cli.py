@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from skac_codec.agent import PROTOCOL, execute_request, main
 
 
@@ -39,6 +41,29 @@ def request(request_id: str, operation: str, **arguments: object) -> dict[str, o
 
 
 class AgentCliTests(unittest.TestCase):
+    def test_encode_accepts_numeric_smplx_npz(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            np.savez(
+                workspace / "motion.npz",
+                poses=np.zeros((3, 165)),
+                trans=np.zeros((3, 3)),
+                mocap_frame_rate=np.asarray(120.0),
+            )
+            response, status = execute_request(
+                request(
+                    "smplx-encode",
+                    "encode",
+                    input="motion.npz",
+                    output="motion.skac",
+                ),
+                workspace,
+            )
+        self.assertEqual(status, 0)
+        self.assertEqual(
+            response["result"]["input_format"], "smplx_parameter_stream"
+        )
+
     def test_capabilities_are_machine_readable(self) -> None:
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
