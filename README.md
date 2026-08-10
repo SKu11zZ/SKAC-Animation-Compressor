@@ -18,6 +18,8 @@ and decodes them fast enough for real-time playback. For a shipped product, that
 smaller builds and patches, lower distribution and storage costs, and room for more
 animation inside the same content budget. One compressed animation can play on its
 source character or, through a frozen Profile, on another public skeleton.
+The Target Independence Gate verifies that building and using different target
+Profiles neither changes the `.skac` bytes nor inserts target hashes into its metadata.
 
 This is the public academic side of that system. The repo makes compression and
 cross-skeleton playback measurable, and keeps their results separate so Codec
@@ -164,6 +166,31 @@ plan. It does not make v2.1 cheap yet: a separate 6,361-frame observation takes 
 seconds, down from the earlier 133.5-second observation. The checked repeated-run
 comparison is in
 [`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json).
+
+### SKAC v2.1 public population calibration
+
+![SKAC v2.1 public population calibration](reports/v2_planner_population_public_100.svg)
+
+The first population gate uses 100 deterministic duration-stratified samples from the
+252 valid public parameter streams. Center windows cover 43,414 evaluated frames from
+76,782 source frames, and all 100 plans pass the frozen high-quality checks. Rotation
+error is 0.0475° at P50, 0.0493° at P80, and 0.0504° at P95; the corresponding global-
+position fractions are 0.000607, 0.000667, and 0.000786 skeleton heights.
+
+The estimated pre-entropy track payload is 19.65% of Float32 channels at P50, 20.44%
+at P80, and 20.95% at P95. This deliberately excludes entropy coding and container
+overhead, so it is not a final `.skac` file-size claim. Planner timing was collected
+under a four-worker population load and is labelled as throughput evidence, not
+isolated runtime latency. The JSON retains all anonymous samples and the five neutral
+best/P50/P80/P95/worst representatives:
+[`v2_planner_population_public_100.json`](reports/v2_planner_population_public_100.json).
+
+```text
+python tools/run_v2_planner_population.py --data-root LOCAL_SMPL_CACHE \
+  --output reports/v2_planner_population_public_100.json \
+  --visual reports/v2_planner_population_public_100.svg \
+  --checkpoint LOCAL_CHECKPOINT.jsonl --sample-count 100 --max-frames 512 --workers 4
+```
 
 It is a standalone academic project. It does not depend on product code, and it does
 not ship characters, motions, datasets, or model weights. You bring public data from
@@ -426,6 +453,24 @@ false。每个动画族还各取一个中性样本，完整跑通 `FBX → BVH �
 这次只降低离线编码规划成本，不改变运行时解码和最终规划结果。v2.1 还没有便宜到可以忽略：
 单独测得的 6,361 帧长动作现在需要 76.45 秒，低于此前观测到的 133.5 秒。三轮可复现对照见
 [`v2_planner_optimization_smplx.json`](reports/v2_planner_optimization_smplx.json)。
+
+### SKAC v2.1 公开人口分布校准
+
+![SKAC v2.1 公开人口分布校准](reports/v2_planner_population_public_100.svg)
+
+第一轮人口门槛从 252 条有效公开参数动画中，按时长分层、确定性抽取 100 条。中心窗口一共
+评测 43,414 帧，对应 76,782 个源帧；100 条全部通过冻结的 high 质量门槛。旋转误差的
+P50/P80/P95 分别是 0.0475°、0.0493°、0.0504°，对应的全局位置误差为骨架高度的
+0.000607、0.000667、0.000786。
+
+熵编码前的规划轨道载荷在 P50/P80/P95 分别约为 Float32 通道的 19.65%、20.44%、20.95%。
+这个数字没有包含熵编码和容器开销，因此不能当成最终 `.skac` 文件体积。规划耗时是在四工作
+进程的人口负载下采集的，只用于吞吐和分布分析，不冒充隔离运行时延迟。JSON 保留了全部
+中性 ID 结果，以及最好、P50、P80、P95、最差五个代表样本：
+[`v2_planner_population_public_100.json`](reports/v2_planner_population_public_100.json)。
+
+同时新增目标无关门槛：构建和使用不同目标 Profile 不能改变 `.skac` 字节，也不能把目标
+哈希写进动画元数据。
 
 它是一个独立的学术项目，不接产品工程，也不把角色、动画、数据集和模型权重塞进仓库。
 公开数据由使用者从官方来源获取；这里负责协议、运行器、指标，以及一个足够小、能看懂的

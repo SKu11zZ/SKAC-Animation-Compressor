@@ -8,7 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
-from skac_codec.format import decode_bytes, encode_bytes
+from skac_codec.format import PREFIX, decode_bytes, encode_bytes
+from skac_codec.format_v2 import encode_v2_bytes
 from skac_codec.math3d import euler_order_to_quaternion, quaternion_angular_error_degrees
 from skac_codec.model import MotionClip, Skeleton
 from skac_codec.retarget import (
@@ -93,6 +94,32 @@ def target_skeleton(scale: float, engine_names: bool) -> Skeleton:
 
 
 class RetargetTests(unittest.TestCase):
+    def test_v2_bitstream_is_independent_of_target_profiles(self) -> None:
+        source = source_clip()
+        encoded = encode_v2_bytes(source)
+        encoded_sha256 = hashlib.sha256(encoded).hexdigest()
+        decoded = decode_bytes(encoded)
+        targets = (target_skeleton(1.2, True), target_skeleton(1.5, False))
+        profiles = [
+            build_retarget_profile(decoded.skeleton, target, contact_lock=False)
+            for target in targets
+        ]
+        for target, profile in zip(targets, profiles, strict=True):
+            result, _ = retarget_motion(decoded, target, profile)
+            self.assertEqual(result.frame_count, source.frame_count)
+
+        self.assertEqual(hashlib.sha256(encoded).hexdigest(), encoded_sha256)
+        self.assertEqual(encode_v2_bytes(source), encoded)
+        fields = PREFIX.unpack_from(encoded)
+        metadata_start = PREFIX.size
+        metadata_end = metadata_start + int(fields[4])
+        metadata_text = encoded[metadata_start:metadata_end].decode("utf-8")
+        metadata = json.loads(metadata_text)
+        self.assertEqual(metadata["skeleton_sha256"], source.skeleton.signature())
+        for target, profile in zip(targets, profiles, strict=True):
+            self.assertNotIn(target.signature(), metadata_text)
+            self.assertNotIn(profile.signature(), metadata_text)
+
     def test_one_encoded_clip_targets_two_skeletons(self) -> None:
         source = source_clip()
         decoded = decode_bytes(encode_bytes(source))
